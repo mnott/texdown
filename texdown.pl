@@ -65,6 +65,9 @@ my $debug;
 my $man = 0;
 my $help = 0;
 
+my $itemlevel   = 0; # for itemizes: level; 0, 1 or 2
+my $currentitem = ""; # current bullet kind: "", "m" or "t"
+
 
 #
 # Parse command line
@@ -136,26 +139,26 @@ tie %parser, 'Tie::IxHash';
   # \ref{Methodology-and-Constraints}
   # 
   # 
-  '^# (.*?)$' => '"\part{$1}\label{".nospace($1)."}"',
-  '^## (.*?)$' => '"\chapter{$1}\label{".nospace($1)."}"',
-  '^### (.*?)$' => '"\section{$1}\label{".nospace($1)."}"',
-  '^#### (.*?)$' => '"\subsection{$1}\label{".nospace($1)."}"',
-  '^##### (.*?)$' => '"\subsubsection{$1}\label{".nospace($1)."}"',
-  '^###### (.*?)$' => '"\paragraph{$1}\label{".nospace($1)."}"',
+  '^# (.*?)$' => '"\part{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^## (.*?)$' => '"\chapter{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^### (.*?)$' => '"\section{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^#### (.*?)$' => '"\subsection{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^##### (.*?)$' => '"\subsubsection{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^###### (.*?)$' => '"\paragraph{$1}\label{".nomarkdown(nospace($1))."}"',
 
-  '^#\* (.*?)$' => '"\part*{$1}\label{".nospace($1)."}"',
-  '^##\* (.*?)$' => '"\chapter*{$1}\label{".nospace($1)."}"',
-  '^###\* (.*?)$' => '"\section*{$1}\label{".nospace($1)."}"',
-  '^####\* (.*?)$' => '"\subsection*{$1}\label{".nospace($1)."}"',
-  '^#####\* (.*?)$' => '"\subsubsection*{$1}\label{".nospace($1)."}"',
-  '^######\* (.*?)$' => '"\paragraph*{$1}\label{".nospace($1)."}"',  
+  '^#\* (.*?)$' => '"\part*{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^##\* (.*?)$' => '"\chapter*{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^###\* (.*?)$' => '"\section*{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^####\* (.*?)$' => '"\subsection*{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^#####\* (.*?)$' => '"\subsubsection*{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^######\* (.*?)$' => '"\paragraph*{$1}\label{".nomarkdown(nospace($1))."}"',  
 
-  '^#\[([^]]*)\] (.*?)$' => '"\part[$1]{$2}\label{".nospace($2)."}"',
-  '^##\[([^]]*)\] (.*?)$' => '"\chapter[$1]{$2}\label{".nospace($2)."}"',
-  '^###\[([^]]*)\] (.*?)$' => '"\section[$1]{$2}\label{".nospace($2)."}"',
-  '^####\[([^]]*)\] (.*?)$' => '"\subsection[$1]{$2}\label{".nospace($2)."}"',
-  '^#####\[([^]]*)\] (.*?)$' => '"\subsubsection[$1]{$2}\label{".nospace($2)."}"',
-  '^######\[([^]]*)\] (.*?)$' => '"\paragraph[$1]{$2}\label{".nospace($2)."}"',
+  '^#\[([^]]*)\] (.*?)$' => '"\part[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
+  '^##\[([^]]*)\] (.*?)$' => '"\chapter[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
+  '^###\[([^]]*)\] (.*?)$' => '"\section[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
+  '^####\[([^]]*)\] (.*?)$' => '"\subsection[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
+  '^#####\[([^]]*)\] (.*?)$' => '"\subsubsection[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
+  '^######\[([^]]*)\] (.*?)$' => '"\paragraph[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
 
   #
   # Footnotes
@@ -305,12 +308,24 @@ if (-t STDIN) {
 # the whole match string, not just the group you're
 # looking for.
 # 
+# We also are going to parse out any 
+# 
 sub nospace {
   my $str = shift;
   $str =~ s/ /-/g;
+
   return $str;
 }
 
+#
+# Drop any Markdown (for auto generated header labels)
+# 
+sub nomarkdown {
+  my $str = shift;
+  $str =~ s/\[[^\]]*\]//g;
+
+  return $str;
+}
 
 #
 # Regular Expression parser usign the %parser
@@ -362,9 +377,173 @@ sub parse {
     $content =~ s/!NOCOMMENT!/\%/g;
     $comment =~ s/!NOCOMMENT!/\%/g;
 
+    #
+    # Test for itemizes
+    # 
+    $content = itemize($content);
+
+    #
+    # Reconcatenate content and comments (if any)
+    #
     $output .= "$content$comment\n";
   }
   return $output;
+}
+
+
+#
+# Working with itemizes
+# 
+# TODO: For the moment we support only one
+#       level, as Scrivener doesn't really
+#       support more anyway (if we convert
+#       rtf to txt, only one level is there
+#       to be identified):
+#       
+#       If we export from Scrivener, we can
+#       have only two levels of itemizes:
+#       
+#       Case a):
+#       
+#       \t         => Level 1
+#       &middot;\t => Level 2
+#       
+#       Case b):
+#       
+#       &middot;\t => Level 1
+#       \t         => Level 2
+#       
+#       Any further indentation from the point
+#       of view of Scrivener will not be 
+#       reflected in the converted text file.
+#       Hence, we have at best two levels of
+#       indentation.
+#       
+#       For simplification, let's name a line
+#       starting with \t "t", one with "&middot;\t"
+#       as "m", and otherwise "" - which will be
+#       in $currentitem.
+#       
+#       $itemlevel will be 0, 1 or 2.
+#     
+#       So we have this cases for what we found
+#       at the beginning of the line:
+#       
+#        Case Found   $itemlevel  $currentitem Action
+#       ---------------------------------------------
+#         1   ""      1 or 2      m or t        E1
+#         2   "\t"    0           ""            E2
+#         3   "\t"    1 or 2      t             E3
+#         4   "\t"    1           m             E4
+#         5   "\t"    2           m             E5
+#         6   "m"     0           ""            E2
+#         7   "m"     1 or 2      m             E3
+#         8   "m"     1           t             E4
+#         9   "m"     2           t             E5
+#       
+#       
+#       E1: * End all itemizes
+#           - End as many itemizes as we had (1 or 2)
+#             as per $itemlevel by adding \end{itemize}s
+#           - $itemlevel=0;
+#           - $currentitem="";
+#           
+#       E2: * Start level 1
+#           - Prefix line with \begin{itemize}\item 
+#           - $itemlevel=1;
+#           - $currentitem = (what was found);
+#           
+#       E3: * Continue on same level
+#           - Prefix line with \item 
+#       
+#       E4: * Start level 2
+#           - Prefix line with \begin{itemize}\item 
+#           - $itemlevel=2;
+#           - $currentitem = (what was found);
+#      
+#       E5: * End level 2
+#           - Prefix line with \end{itemize\n\item
+#           - $itemlevel=1;
+#           - $currentitem = (what was found);
+#           
+#       In all cases, we need to replace a given
+#       "&middot;" by "\t" on level 1, or  "\t\t"
+#       on level 2, as otherwise LaTeX will not
+#       compile. Similarly, on level 2, we will
+#       replace "\t" by "\t\t". Maintaining the
+#       indentation level is cosmetic only at this
+#       point.
+#       
+#  Yes. I know. It is horrific. But it's working for now...
+#       
+sub itemize {
+  my $line = shift;
+
+  if (! ($line =~ /^[\t]+.*$/) && ! ($line =~ /^[\t]*\&middot;\t.*$/) && $currentitem ne "") {
+    # 1 => E1
+    if ($itemlevel == 2) {
+      $line = "\\end{itemize}\n\\end{itemize}\n\n" . $line;
+    } elsif ($itemlevel == 1) {
+      $line = "\\end{itemize}\n\n" . $line; 
+    }
+    $currentitem = "";
+    $itemlevel = 0;
+    return $line;
+  } elsif ($line =~ /^[\t]+(.*)$/) {
+    my $content = $1;
+    if ($itemlevel == 0 && $currentitem eq "") {
+      # 2 => E2
+      $content = "\\begin{itemize}\n\t\\item $content";
+      $itemlevel = 1;
+      $currentitem = "t";
+    } elsif($itemlevel > 0 && $currentitem eq "t") {
+      # 3 => E3
+      if($itemlevel == 1) {
+        $content = "\t\\item $content";  
+      } else {
+        $content = "\t\t\\item $content";
+      }
+    } elsif($itemlevel == 1 && $currentitem eq "m") {
+      # 4 => E4
+      $content = "\\begin{itemize}\n\t\t\\item $content";
+      $itemlevel = 2;
+      $currentitem = "t";
+    } elsif($itemlevel == 2 && $currentitem eq "m") {
+      # 5 => E5
+      $content = "\\end{itemize}\n\t\\item $content";
+      $itemlevel = 1;
+      $currentitem = "t";
+    }
+    $line = $content;
+  } elsif ($line =~ /^[\t]*\&middot;\t(.*)$/) {
+    my $content = $1;
+    if ($itemlevel == 0 && $currentitem eq "") {
+      # 6 => E2
+      $content = "\\begin{itemize}\n\t\\item $content";
+      $itemlevel = 1;
+      $currentitem = "m";
+    } elsif($itemlevel > 0 && $currentitem eq "m") {
+      # 7 => E3
+      if($itemlevel == 1) {
+        $content = "\t\\item $content";  
+      } else {
+        $content = "\t\t\\item $content";
+      }
+    } elsif($itemlevel == 1 && $currentitem eq "t") {
+      # 8 => E4
+      $content = "\\begin{itemize}\n\t\t\\item $content";
+      $itemlevel = 2;
+      $currentitem = "m";
+    } elsif($itemlevel == 2 && $currentitem eq "t") {
+      # 9 => E5
+      $content = "\\end{itemize}\n\t\\item $content";
+      $itemlevel = 1;
+      $currentitem = "m";
+    }
+    $line = $content;
+  }
+
+  return $line;
 }
 
 
