@@ -228,10 +228,13 @@ of the file. It is pretty well documented.
 # LIMITATIONS
 
 At this moment, **texdown.pl** works on single lines only. In other
-words, we do not support tags that span multiple lines, and we do
-not yet support itemizes, enumerates (while those could be done with
-line by line processing using a carry flag, we just didn't implement
-it so far), or tables.
+words, we do not support tags that span multiple lines. We have just
+added limited, and ugly, support for itemizes, which works sufficiently
+well with Scrivener: Scrivener gives at best two levels of itemizes
+anyway. For more complex ones, and enumerates, you still will need to
+use plain LaTeX. We also don't support tables so far: I believe this
+is strongly overrated, as real LaTeX users won't contend with simple
+tables anyhow.
 
 Practically, this means that you will e.g. have to have your
 footnotes in one line, like \_\_This is a footnote\_\_ - of course
