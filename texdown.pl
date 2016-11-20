@@ -72,13 +72,14 @@ use RTF::TEXT::Converter;
 use XML::LibXML;
 use Tie::IxHash;
 
-my $project = "";
+my @projects = ();
 my $dontparse;
 my $debug;
 my $man = 0;
 my $help = 0;
 my $documentation = 0;
 my $listsections  = 0;
+my $listids       = 0;
 my $incompilation = 0;
 
 my $itemlevel   = 0;  # for itemizes: level; 0, 1 or 2
@@ -88,13 +89,14 @@ my $currentitem = ""; # current bullet kind: "", "m" or "t"
 #
 # Parse command line
 #
-GetOptions ('project:s'         => \$project,       # if scriv, document folder to start with
+GetOptions ('projects:s'        => \@projects,      # if scriv, document folder(s) to start with
             'dontparse'         => \$dontparse,     # if set, dont parse md
             'v|d|debug|verbose' => \$debug,         # if set, print some debug info
             'help|?|h'          => \$help,          # if set, print help screen
             'man'               => \$man,           # if set, print manual
             'documentation'     => \$documentation, # if set, recreate the documentation
             'listsections'      => \$listsections,  # if set, only list section names
+            'listids'           => \$listids,       # if set, only list object ids
             'incompilation'     => \$incompilation, # if set, only list items "in compilation"
 ) or pod2usage(2);
 
@@ -642,7 +644,7 @@ sub runOnFiles {
         # If we don't have a project, as a fallback, we default
         # to the $fname
         # 
-        $project = $fname if ($project eq "");
+        $projects[0] = $fname if (@projects == 0);
 
         parseScrivener ($dir, $file);
       } elsif (-f "$found") {
@@ -682,15 +684,40 @@ sub parseScrivener {
   my ($dir, $file) = (@_);
   if ($debug) {
     print "% Scrivener Processing...\n";
-    print "% Project    : $project\n";
+    print "% Projects   : " . join( ', ', @projects ) . "\n";
     print "% Directory  : $dir\n";
     print "% File       : $file\n";
   }
 
   my $doc = XML::LibXML->load_xml(location => $file);
 
-  foreach my $binderItem ($doc->findnodes('//BinderItem[Title/text() = "'."$project".'"]/Children/*')) {
-    printNode($binderItem, "", 0, $dir);
+  #
+  # Check whether we have an absolute or a relative location
+  # 
+  foreach my $project (@projects) {
+    if ($project =~ "^/.*") {
+      #
+      # Absolute location
+      #
+      my $path = "/ScrivenerProject/Binder";
+      foreach my $location (split("/", $project)) {
+        if ($location ne "") { $path .= '/BinderItem[Title/text() = "'."$location".'"]/Children'; }
+      }
+
+      $path .= "/*";
+
+      foreach my $binderItem ($doc->findnodes($path)) {
+        printNode($binderItem, "", 0, $dir);
+      }
+      
+    } else {
+      #
+      # Relative location
+      # 
+      foreach my $binderItem ($doc->findnodes('//BinderItem[Title/text() = "'."$project".'"]/Children/*')) {
+        printNode($binderItem, "", 0, $dir);
+      }
+    }
   }
 }
 
@@ -709,34 +736,35 @@ sub printNode {
   my ($parentItem, $path, $level, $dir) = (@_);
 
   my $parentTitle = "$path/" . $parentItem->findnodes('./Title')->to_literal;
+  my $docId   = $parentItem->getAttribute("ID");
+  my $docType = $parentItem->getAttribute("Type");
+  my $docTitle = $parentItem->findnodes('./Title')->to_literal;
+  my $includeInCompile = $parentItem->findnodes('./MetaData/IncludeInCompile')->to_literal;
 
-  foreach my $binderItem ($parentItem->findnodes('./Children/*')) {
-    my $docId    = $binderItem->getAttribute("ID");
-    my $docType  = $binderItem->getAttribute("Type");
-    my $docTitle = $binderItem->findnodes('./Title')->to_literal;
-    my $includeInCompile = $binderItem->findnodes('./MetaData/IncludeInCompile')->to_literal;
+  #
+  # If we are restricting by the Scrivener metadata field
+  # IncludeInCompile (which we do by default), then if a
+  # given node has that field unchecked, we don't print
+  # that node, and we don't dive into it's children.
+  # 
+  return if($incompilation && $includeInCompile ne "Yes");
 
-    #
-    # If we are restricting by the Scrivener metadata field
-    # IncludeInCompile (which we do by default), then if a
-    # given node has that field unchecked, we don't print
-    # that node, and we don't dive into it's children.
-    # 
-    next if($incompilation && $includeInCompile ne "Yes");
-    
-    #
-    # If the current node is not a text node, we don't print
-    # it, but we dive into its children. When we come out of
-    # that branch, we can return as there's nothing left to
-    # print.
-    # 
-    if($docType ne "Text") { 
-      printNode($binderItem, $parentTitle, ++$level, $dir);
-      return;
-    }
+  #
+  # If the current node is a text node, we have to print it
+  # 
+  if($docType eq "Text") {
+    if ($listsections || $listids) {
+      my $printline = "";
 
-    if ($listsections) {
-      print "$parentTitle/$docTitle\n";
+      if ($listids) {
+        $printline = sprintf("[%8d] ", $docId);
+      }
+
+      if ($listsections) {
+        $printline .= "$parentTitle";
+      }
+
+      print "$printline\n";
     } else {
       my $rtf = "$dir/Files/Docs/$docId.rtf";
     
@@ -751,8 +779,13 @@ sub printNode {
         print $line . "\n";
       }
     }
+  }
 
-    # Dive into children
+  #
+  # If the current node has children, we need to call them (and let
+  # them decide whether they want to process themselves)
+  # 
+  foreach my $binderItem ($parentItem->findnodes('./Children/*')) {
     printNode($binderItem, $parentTitle, ++$level, $dir);
   }
 }
@@ -857,10 +890,12 @@ Command line parameters can take any order on the command line.
 
    Scrivener Options:
 
-   -project         The scrivener folder name to start with
-   -listsections    Only list the titles that would have been included
+   -projects        The scrivener object name(s) to start with
    -incompilation   Only include stuff that was marked for In Compilation
 
+   -listids         Only list the ids of the titles that would have been included
+   -listsections    Only list the titles that would have been included
+                    Both -listids and -listsections can be combined
 
    Other Options:
 
@@ -888,17 +923,47 @@ has been parsed.
 
 Don't actually parse the Markdown Code into LaTeX code.
 
-=item B<-project>
+=item B<-projects>
 
-The root folder in a Scrivener database within the processing
+The root object(s) in a Scrivener database within the processing
 should start. If not given, and if yet running on a Scrivener
-database, the script will assume the root folder to have the
+database, the script will assume the root object to have the
 same name as the Scrivener database.
 
-=item B<-listsections>
+If you want to process multiple object trees, just use this
+command line argument multiple times. For example, you can
+use
 
-Rather than actually printing the parsed content, only print
-the document titles that would have been included.
+  ./texdown.pl Dissertation -projects FrontMatter -projects Content -projects BackMatter
+
+Each object name can be either an actual name of an object,
+so for example, if you have an object
+
+  /Research/Literature/XYZ
+
+with a whole lot of objects beneath, you can give "XYZ", and
+you will get everything beneath XYZ, or you can give "Literature",
+and get everything below that (for example, "XYZ"). If you have
+more than one objects by that name, you will get trees for all of
+them.
+
+Or, assume you would run into some ambiguity, or you would recruit
+your material from completely disjunct object trees, you can also
+use absolute path names. So assume you have some folder that contains
+your front matter and back matter for articles, and then you have
+some literature folder somewhere, you can do this:
+
+  ./texdown.pl Dissertation -projects /LaTeX/Articles/FrontMatter -projects /LaTeX/Articles/BackMatter -projects Literature
+
+As a side effect, if you want to print out the entire object hierarchy
+of your scrivener database, you can do this:
+
+  ./texdown.pl Dissertation -projects / -listsections
+
+And if you also want to see which file names correspond to which object,
+you can add the -listids option:
+
+  ./texdown.pl Dissertation -projects / -listsections -listids
 
 =item B<-incompilation>
 
@@ -908,6 +973,21 @@ we detect it to be unset at level n in the document tree, we will
 not follow down into the children of that tree, even if they have
 it set. This allows us to easily exclude whole trees of content 
 from the compilation.
+
+=item B<-listsections>
+
+Rather than actually printing the parsed content, only print
+the document titles that would have been included. Can be combined
+with -listids.
+
+=item B<-listids>
+
+Rather than actually printing the parsed content, only print
+the document IDs that would have been included. Those document
+IDs correspond to RTF files which you would find in the Files/Docs 
+subdirectory; hence this option might be useful for you to understand
+which file corresponds to which Scrivener object. This option can be
+combined with -listsections.
 
 =item B<-documentation>
 
@@ -1035,7 +1115,7 @@ in the current directory, you can do this:
 
   ./texdown.pl Dissertation
 
-Notice that we did not use the -project parameter to specify the root
+Notice that we did not use the -projects parameter to specify the root
 folder at which you want to start your processing. If this is the
 case, B<texdown.pl> will try to locate a folder that has the same
 name as the database - in the above example, it will just use
@@ -1043,11 +1123,11 @@ B<Dissertation>.
 
 So if you want to specify another root folder, you can do so:
 
-  ./texdown.pl Dissertation -project Content
+  ./texdown.pl Dissertation -projects Content
 
 Piping the result into some file:
 
-  ./texdown.pl Dissertation -project Content >document.tex
+  ./texdown.pl Dissertation -projects Content >document.tex
 
 If you do not have the Scrivener project in your working directory,
 you can chose any other way to call it, so like:
