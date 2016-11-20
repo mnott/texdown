@@ -1,4 +1,4 @@
-#!/opt/local/bin/perl          # <= Adapt if needed
+#!/usr/bin/perl                # <= Adapt if needed
 ###################################################
 #
 # texdown.pl
@@ -26,6 +26,16 @@
 # just give actual file names instead of Scrivener
 # directories as parameters.
 # 
+###################################################
+#
+# About the documentation:
+# 
+# Created like
+# 
+# pod2markdown.pl <texdown.pl >README.md
+# 
+# Using the excellent podmarkdwon by Randy Stauner. 
+#
 ###################################################
 # (c) Matthias Nott, SAP. Licensed under WTFPL.
 ###################################################
@@ -145,6 +155,7 @@ tie %parser, 'Tie::IxHash';
   '^#### (.*?)$' => '"\subsection{$1}\label{".nomarkdown(nospace($1))."}"',
   '^##### (.*?)$' => '"\subsubsection{$1}\label{".nomarkdown(nospace($1))."}"',
   '^###### (.*?)$' => '"\paragraph{$1}\label{".nomarkdown(nospace($1))."}"',
+  '^####### (.*?)$' => '"\subparagraph{$1}\label{".nomarkdown(nospace($1))."}"',
 
   '^#\* (.*?)$' => '"\part*{$1}\label{".nomarkdown(nospace($1))."}"',
   '^##\* (.*?)$' => '"\chapter*{$1}\label{".nomarkdown(nospace($1))."}"',
@@ -152,6 +163,8 @@ tie %parser, 'Tie::IxHash';
   '^####\* (.*?)$' => '"\subsection*{$1}\label{".nomarkdown(nospace($1))."}"',
   '^#####\* (.*?)$' => '"\subsubsection*{$1}\label{".nomarkdown(nospace($1))."}"',
   '^######\* (.*?)$' => '"\paragraph*{$1}\label{".nomarkdown(nospace($1))."}"',  
+  '^#######\* (.*?)$' => '"\subparagraph*{$1}\label{".nomarkdown(nospace($1))."}"',  
+
 
   '^#\[([^]]*)\] (.*?)$' => '"\part[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
   '^##\[([^]]*)\] (.*?)$' => '"\chapter[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
@@ -159,6 +172,7 @@ tie %parser, 'Tie::IxHash';
   '^####\[([^]]*)\] (.*?)$' => '"\subsection[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
   '^#####\[([^]]*)\] (.*?)$' => '"\subsubsection[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
   '^######\[([^]]*)\] (.*?)$' => '"\paragraph[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
+  '^#######\[([^]]*)\] (.*?)$' => '"\subparagraph[$1]{$2}\label{".nomarkdown(nospace($2))."}"',
 
   #
   # Footnotes
@@ -785,7 +799,7 @@ Put the script somewhere and make it executable:
 (Desktop is probably not the best place to put it, but just to
 make the point.) Also, make sure that you reference the right
 version of Perl. At the beginning of the script, you see a
-reference to /opt/local/bin/perl. Use, on the command line,
+reference to /usr/bin/perl. Use, on the command line,
 this command to find out where you actually have your Perl:
 
   which perl
@@ -973,6 +987,8 @@ Likewise, for
 #### Subsubsection
 
 ##### Paragraph
+
+###### Subparagraph
 
 Optionally, you can add short forms of the headings - those that
 are going to be put into the table of contents - for all levels
