@@ -111,6 +111,10 @@ tie %parser, 'Tie::IxHash';
 
 %parser = (
   #
+  # Remove some crap from the rtf2txt conversion
+  #
+  'HelveticaNeue;'  => '""',        # This keeps reappearing...
+
   # Remove Comments that Scrivener needs to ignore plain LaTeX.
   # Actually we could just not anymore write even those comments
   # into Scrivener; yet in the Scrivenings view, it may be nicer
