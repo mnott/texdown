@@ -78,20 +78,24 @@ my $debug;
 my $man = 0;
 my $help = 0;
 my $documentation = 0;
+my $listsections  = 0;
+my $incompilation = 0;
 
-my $itemlevel   = 0; # for itemizes: level; 0, 1 or 2
+my $itemlevel   = 0;  # for itemizes: level; 0, 1 or 2
 my $currentitem = ""; # current bullet kind: "", "m" or "t"
 
 
 #
 # Parse command line
 #
-GetOptions ('project:s'         => \$project,   # if scriv, document folder to start with
-            'dontparse'         => \$dontparse, # if set, dont parse md
-            'v|d|debug|verbose' => \$debug,     # if set, print some debug info
-            'help|?|h'          => \$help, 
-            'man'               => \$man,
+GetOptions ('project:s'         => \$project,       # if scriv, document folder to start with
+            'dontparse'         => \$dontparse,     # if set, dont parse md
+            'v|d|debug|verbose' => \$debug,         # if set, print some debug info
+            'help|?|h'          => \$help,          # if set, print help screen
+            'man'               => \$man,           # if set, print manual
             'documentation'     => \$documentation, # if set, recreate the documentation
+            'listsections'      => \$listsections,  # if set, only list section names
+            'incompilation'     => \$incompilation, # if set, only list items "in compilation"
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
@@ -301,13 +305,17 @@ tie %parser, 'Tie::IxHash';
 
 
 #
-# Decide which processing ot use
-#
+# Shortcut for myself to recreate the documentation
+# without having to remember how it was done.
+# 
 if ($documentation) {
   system("$pod2markdown <texdown.pl >README.md");
   exit 0;
 }
 
+#
+# Decide which processing ot use: STDIN or files
+#
 if (-t STDIN) {
   if (@ARGV > 0) {
     runOnFiles (@ARGV);
@@ -319,6 +327,8 @@ if (-t STDIN) {
 }
 
 
+#
+# nospace
 #
 # Simple function to remove Spaces from a String
 # 
@@ -336,7 +346,8 @@ if (-t STDIN) {
 # the whole match string, not just the group you're
 # looking for.
 # 
-# We also are going to parse out any 
+# $str   : The string to parse
+# returns: The parsed string with spaces replaced by -
 # 
 sub nospace {
   my $str = shift;
@@ -356,8 +367,13 @@ sub nomarkdown {
 }
 
 #
+# parse
+#
 # Regular Expression parser usign the %parser
 # Parse table
+# 
+# $input : Text content to parse
+# returns: The parsed content
 # 
 sub parse {
   my $input = shift;
@@ -419,6 +435,8 @@ sub parse {
 }
 
 
+#
+# itemize
 #
 # Working with itemizes
 # 
@@ -503,6 +521,9 @@ sub parse {
 #       point.
 #       
 #  Yes. I know. It is horrific. But it's working for now...
+#  
+# $line  : The line to parse for detecting itemizes
+# returns: The parsed line, with optionally added itemize etc.
 #       
 sub itemize {
   my $line = shift;
@@ -576,8 +597,12 @@ sub itemize {
 
 
 #
+# runOnFiles
+#
 # Do the processing on files
 # from the command line
+# 
+# arguments: The files to parse
 #
 sub runOnFiles {
   while ($_ = shift(@ARGV)) {
@@ -631,6 +656,8 @@ sub runOnFiles {
 
 
 #
+# runAsFilter
+#
 # Do the processing on input
 # piped via STDIN
 #
@@ -644,7 +671,12 @@ sub runAsFilter {
 
 
 #
-# Parse a Scrivener Directory
+# parseScrivener
+# 
+# Parse a Scrivener Database
+# 
+# $dir      : The .scriv  directory to parse
+# $file     : The .scrivx file to parse in that directory
 #
 sub parseScrivener {
   my ($dir, $file) = (@_);
@@ -657,28 +689,82 @@ sub parseScrivener {
 
   my $doc = XML::LibXML->load_xml(location => $file);
 
-  foreach my $binderItem ($doc->findnodes('//BinderItem[Title/text() = "'."$project".'"]//BinderItem[@Type="Text"]')) {
-    my $docId    = $binderItem->getAttribute("ID");
-    my $docTitle = $binderItem->findnodes('./Title')->to_literal;
-  
-    my $rtf = "$dir/Files/Docs/$docId.rtf";
-  
-    if (-e "$rtf") {
-      my $line = "";
-      if($debug) {
-        $line = "\n\n<!--\n%\n%\n% ". $docId . " -> " . $docTitle . "\n%\n%\n-->\n";
-      }
-      $line .= rtf2txt("$dir/Files/Docs/$docId.rtf");
-  
-      $line = parse($line) unless $dontparse;  
-      print $line . "\n";
-    }
+  foreach my $binderItem ($doc->findnodes('//BinderItem[Title/text() = "'."$project".'"]/Children/*')) {
+    printNode($binderItem, "", 0, $dir);
   }
 }
 
 
 #
-# Parse a Plain File
+# printNode
+# 
+# Recursive Function to conditionally print and dive into children
+# 
+# $parentItem: The starting point of the tree
+# $path      : The path up to the $parentItem
+# $level     : The level of recursion
+# $dir       : The directory to retrieve rtf files from
+# 
+sub printNode {
+  my ($parentItem, $path, $level, $dir) = (@_);
+
+  my $parentTitle = "$path/" . $parentItem->findnodes('./Title')->to_literal;
+
+  foreach my $binderItem ($parentItem->findnodes('./Children/*')) {
+    my $docId    = $binderItem->getAttribute("ID");
+    my $docType  = $binderItem->getAttribute("Type");
+    my $docTitle = $binderItem->findnodes('./Title')->to_literal;
+    my $includeInCompile = $binderItem->findnodes('./MetaData/IncludeInCompile')->to_literal;
+
+    #
+    # If we are restricting by the Scrivener metadata field
+    # IncludeInCompile (which we do by default), then if a
+    # given node has that field unchecked, we don't print
+    # that node, and we don't dive into it's children.
+    # 
+    next if($incompilation && $includeInCompile ne "Yes");
+    
+    #
+    # If the current node is not a text node, we don't print
+    # it, but we dive into its children. When we come out of
+    # that branch, we can return as there's nothing left to
+    # print.
+    # 
+    if($docType ne "Text") { 
+      printNode($binderItem, $parentTitle, ++$level, $dir);
+      return;
+    }
+
+    if ($listsections) {
+      print "$parentTitle/$docTitle\n";
+    } else {
+      my $rtf = "$dir/Files/Docs/$docId.rtf";
+    
+      if (-e "$rtf") {
+        my $line = "";
+        if($debug) {
+          $line = "\n\n<!--\n%\n%\n% ". $docId . " -> " . $docTitle . "\n%\n%\n-->\n";
+        }
+        $line .= rtf2txt("$dir/Files/Docs/$docId.rtf");
+    
+        $line = parse($line) unless $dontparse;  
+        print $line . "\n";
+      }
+    }
+
+    # Dive into children
+    printNode($binderItem, $parentTitle, ++$level, $dir);
+  }
+}
+
+
+#
+# parsePlain
+#
+# Parse a Plain TeXDown File
+# 
+# $dir      : The directory to look into
+# $file     : The file to parse
 #
 sub parsePlain {
   my ($dir, $file) = (@_);
@@ -699,7 +785,11 @@ sub parsePlain {
 
 
 #
+# rtf2txt
+# 
 # Convert a file from rtf to a txt string.
+# 
+# $file     : The file to convert
 # 
 sub rtf2txt {
 	my $file = shift;
@@ -711,12 +801,6 @@ sub rtf2txt {
 
 
 
-#GetOptions ('project:s'         => \$project,   # if scriv, document folder to start with
-#            'dontparse'         => \$dontparse, # if set, dont parse md
-#            'v|d|debug|verbose' => \$debug,     # if set, print some debug info
-#            'help|?|h'          => \$help, 
-#            'man'               => \$man,
-#) or pod2usage(2);
 
 __END__
 
@@ -763,14 +847,25 @@ TeXDown  -  Use Markdown with LaTeX, and particularly with Scrivener.
 Command line parameters can take any order on the command line.
 
  Options:
+
+   General Options:
+
    -help            brief help message (alternatives: ?, -h)
    -man             full documentation (alternatives: -m)
    -v               verbose (alternatives: -d, -debug, -verbose)
    -dontparse       do not actually parse Markdown into LaTeX
 
+   Scrivener Options:
+
    -project         The scrivener folder name to start with
+   -listsections    Only list the titles that would have been included
+   -incompilation   Only include stuff that was marked for In Compilation
+
+
+   Other Options:
 
    -documentation   Recreate the README.md (needs pod2markdown)
+
 
 =head1 OPTIONS
 
@@ -799,6 +894,20 @@ The root folder in a Scrivener database within the processing
 should start. If not given, and if yet running on a Scrivener
 database, the script will assume the root folder to have the
 same name as the Scrivener database.
+
+=item B<-listsections>
+
+Rather than actually printing the parsed content, only print
+the document titles that would have been included.
+
+=item B<-incompilation>
+
+Respect the Scrivener metadata field IncludeInCompilation, which
+can be set from Scrivener. Since it can be set at every level, if
+we detect it to be unset at level n in the document tree, we will
+not follow down into the children of that tree, even if they have
+it set. This allows us to easily exclude whole trees of content 
+from the compilation.
 
 =item B<-documentation>
 

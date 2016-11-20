@@ -41,12 +41,22 @@ TeXDown  -  Use Markdown with LaTeX, and particularly with Scrivener.
 Command line parameters can take any order on the command line.
 
     Options:
+
+      General Options:
+
       -help            brief help message (alternatives: ?, -h)
       -man             full documentation (alternatives: -m)
       -v               verbose (alternatives: -d, -debug, -verbose)
       -dontparse       do not actually parse Markdown into LaTeX
 
+      Scrivener Options:
+
       -project         The scrivener folder name to start with
+      -listsections    Only list the titles that would have been included
+      -incompilation   Only include stuff that was marked for In Compilation
+
+
+      Other Options:
 
       -documentation   Recreate the README.md (needs pod2markdown)
 
@@ -75,6 +85,20 @@ Command line parameters can take any order on the command line.
     should start. If not given, and if yet running on a Scrivener
     database, the script will assume the root folder to have the
     same name as the Scrivener database.
+
+- **-listsections**
+
+    Rather than actually printing the parsed content, only print
+    the document titles that would have been included.
+
+- **-incompilation**
+
+    Respect the Scrivener metadata field IncludeInCompilation, which
+    can be set from Scrivener. Since it can be set at every level, if
+    we detect it to be unset at level n in the document tree, we will
+    not follow down into the children of that tree, even if they have
+    it set. This allows us to easily exclude whole trees of content 
+    from the compilation.
 
 - **-documentation**
 
