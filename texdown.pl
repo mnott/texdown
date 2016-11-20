@@ -27,6 +27,10 @@
 # directories as parameters.
 # 
 ###################################################
+# (c) Matthias Nott, SAP. Licensed under WTFPL.
+###################################################
+
+###################################################
 #
 # About the documentation:
 # 
@@ -37,9 +41,8 @@
 # Using the excellent podmarkdwon by Randy Stauner. 
 #
 ###################################################
-# (c) Matthias Nott, SAP. Licensed under WTFPL.
-###################################################
 
+my $pod2markdown="pod2markdown.pl"; # assumed to be in $PATH
 
 ###################################################
 #
@@ -74,6 +77,7 @@ my $dontparse;
 my $debug;
 my $man = 0;
 my $help = 0;
+my $documentation = 0;
 
 my $itemlevel   = 0; # for itemizes: level; 0, 1 or 2
 my $currentitem = ""; # current bullet kind: "", "m" or "t"
@@ -87,6 +91,7 @@ GetOptions ('project:s'         => \$project,   # if scriv, document folder to s
             'v|d|debug|verbose' => \$debug,     # if set, print some debug info
             'help|?|h'          => \$help, 
             'man'               => \$man,
+            'documentation'     => \$documentation, # if set, recreate the documentation
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
@@ -294,6 +299,11 @@ tie %parser, 'Tie::IxHash';
 #
 # Decide which processing ot use
 #
+if ($documentation) {
+  system("$pod2markdown <texdown.pl >README.md");
+  exit 0;
+}
+
 if (-t STDIN) {
   if (@ARGV > 0) {
     runOnFiles (@ARGV);
@@ -756,6 +766,8 @@ Command line parameters can take any order on the command line.
 
    -project         The scrivener folder name to start with
 
+   -documentation   Recreate the README.md (needs pod2markdown)
+
 =head1 OPTIONS
 
 =over 8
@@ -783,6 +795,13 @@ The root folder in a Scrivener database within the processing
 should start. If not given, and if yet running on a Scrivener
 database, the script will assume the root folder to have the
 same name as the Scrivener database.
+
+=item B<-documentation>
+
+Use pod2markdown to recreate the documentation / README.md.
+You need to configure your location of pod2markdown at the
+top, if you want to do this (it's really an option for me,
+only...)
 
 =back
 
