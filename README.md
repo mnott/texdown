@@ -18,7 +18,7 @@ TeXDown  -  Use Markdown with LaTeX, and particularly with Scrivener.
              while at the same time having the full power of LaTeX
              available, immediately.
 
-             To do so, texdown.pl does several things:
+             To do so, TeXDown does several things:
 
              Parsing LaTeX files that contain some Markdown into
              LaTeX files.
@@ -47,16 +47,20 @@ Command line parameters can take any order on the command line.
       -help            brief help message (alternatives: ?, -h)
       -man             full documentation (alternatives: -m)
       -v               verbose (alternatives: -d, -debug, -verbose)
-      -dontparse       do not actually parse Markdown into LaTeX
+      -n               do not actually parse Markdown into LaTeX
+                       (alternative: -no, -nothing)
 
       Scrivener Options:
 
-      -projects        The scrivener object name(s) to start with
-      -incompilation   Only include stuff that was marked for In Compilation
-
-      -listids         Only list the ids of the titles that would have been included
-      -listsections    Only list the titles that would have been included
-                       Both -listids and -listsections can be combined
+      -p               The scrivener object name(s) to start with.
+                       (alternative: -project)
+      -a               Only include all objects, not only those that
+                       were marked as to be In Compilation.
+                       (alternative: -all)
+      -l               Only list the ids and section titles of what would
+                       have been included (alternative: -list)
+      -c               Use a configuration file to drive TeXDown.
+                       (alternative: -cfg)
 
       Other Options:
 
@@ -77,11 +81,11 @@ Command line parameters can take any order on the command line.
     Put LaTeX comments into the output with the name of the file that
     has been parsed.
 
-- **-dontparse**
+- **-n**
 
     Don't actually parse the Markdown Code into LaTeX code.
 
-- **-projects**
+- **-p**
 
     The root object(s) in a Scrivener database within the processing
     should start. If not given, and if yet running on a Scrivener
@@ -89,10 +93,14 @@ Command line parameters can take any order on the command line.
     same name as the Scrivener database.
 
     If you want to process multiple object trees, just use this
-    command line argument multiple times. For example, you can
-    use
+    command line argument multiple times, or pass multiple arguments
+    to it. For example, you can use
 
-        ./texdown.pl Dissertation -projects FrontMatter -projects Content -projects BackMatter
+        ./texdown.pl Dissertation -p FrontMatter Content BackMatter
+
+    or
+
+        ./texdown.pl Dissertation -p FrontMatter -p Content -p BackMatter
 
     Each object name can be either an actual name of an object,
     so for example, if you have an object
@@ -111,41 +119,118 @@ Command line parameters can take any order on the command line.
     your front matter and back matter for articles, and then you have
     some literature folder somewhere, you can do this:
 
-        ./texdown.pl Dissertation -projects /LaTeX/Articles/FrontMatter -projects /LaTeX/Articles/BackMatter -projects Literature
+        ./texdown.pl Dissertation -p /LaTeX/Articles/FrontMatter /LaTeX/Articles/BackMatter Literature
 
     As a side effect, if you want to print out the entire object hierarchy
     of your scrivener database, you can do this:
 
-        ./texdown.pl Dissertation -projects / -listsections
+        ./texdown.pl Dissertation -p / -l
 
-    And if you also want to see which file names correspond to which object,
-    you can add the -listids option:
+    This will also give you a clue about the associated RTF file names,
+    as the IDs that are listed correspond directly to the rtf file names
+    living in the Files/Docs subdirectory of the Scrivener folder.
 
-        ./texdown.pl Dissertation -projects / -listsections -listids
+- **-a**
 
-- **-incompilation**
-
-    Respect the Scrivener metadata field IncludeInCompilation, which
-    can be set from Scrivener. Since it can be set at every level, if
+    Disrespect the Scrivener metadata field IncludeInCompilation, which
+    can be set from Scrivener. By default, we respect this metadata 
+    field. Since it can be set at every level, if
     we detect it to be unset at level n in the document tree, we will
     not follow down into the children of that tree, even if they have
     it set. This allows us to easily exclude whole trees of content 
-    from the compilation.
+    from the compilation - except if we chose to include all nodes
+    using the -a switch.
 
-- **-listsections**
-
-    Rather than actually printing the parsed content, only print
-    the document titles that would have been included. Can be combined
-    with -listids.
-
-- **-listids**
+- **-l**
 
     Rather than actually printing the parsed content, only print
-    the document IDs that would have been included. Those document
-    IDs correspond to RTF files which you would find in the Files/Docs 
-    subdirectory; hence this option might be useful for you to understand
-    which file corresponds to which Scrivener object. This option can be
-    combined with -listsections.
+    the document IDs and titles that would have been included. 
+
+    Those document IDs correspond to RTF files which you would find 
+    in the Files/Docs subdirectory; hence this option might be useful
+    for you to understand which file corresponds to which Scrivener object.
+
+- **-c**
+
+    Use a configuration file to drive **TeXDown**. This essentially wraps
+    **TeXDown** in itself. If you use -c, you can remove the need to specify
+    all your projects on the command line. Here is a sample configuration
+    file:
+
+        ;
+        ; TeXDown Configuration File
+        ;
+        [GLOBAL]
+        
+        [Dissertation]
+        p=Dissertation
+        
+        [rd]
+        ; Research Design
+        p=/LaTeX/Article/Frontmatter, "Research Design", /LaTeX/Article/Backmatter
+        
+        [roilr]
+        ; ROI - Literature Review
+        p=/LaTeX/Article/Frontmatter, "ROI - Literature Review", /LaTeX/Article/Backmatter
+
+    Let's assume we have saved this file as Dissertation.cfg, into
+    the same directory where we are also having our Scrivener directory
+    Dissertation.scriv. The above file works as follows: You can specify
+    some variables with "scopes" (like, "rd"), and this will serve as an
+    indirection to define which projects really to use.
+
+    So for example, if you call the program like so (I'm using -l in the
+    subsequent examples because listing the assets rather than converting
+    them will make it clearer for you what happens; at the end, you'd of
+    course remove the -l and pipe the output somewhere):
+
+        ./texdown.pl Dissertation -l -c
+
+    you are not even saying which project or which configuration file to
+    use. So what **TeXDown** will do is to assume that the configuration
+    file lives in the same directory that your Dissertation.scriv is in,
+    and is named Dissertation.cfg. It will also assume that you expect to
+    have a scope \[Dissertation\] within that file, and within that section,
+    you have a project definition like p=something.
+
+    If you are more specific, you can make a call like so:
+
+        ./texdown.pl Dissertation -l -c -p roilr
+
+    In that case, you are still not specifying your configuration file, so
+    it will be treated as in the previous case. But you are saying that you
+    want to call the scope \[roilr\], in which case the project definition
+    is taken from that scope.
+
+    To be even more specific, you can explicitly say which configuration
+    file to use:
+
+        ./texdown.pl Dissertation -l -c Dissertation.cfg
+
+    This is going to look for the Dissertation.cfg configuration file,
+    in some location (you can now give a complete path to it), and since
+    we yet forgot again, which project to actually use, it is going to
+    default to the Dissertation scope in that file.
+
+    Let's be really specific and also say, which project to use with
+    that configuration file:
+
+        ./texdown.pl Dissertation -l -c Dissertation.cfg -p roilr
+
+    Of course, you can now be really crazy and run a number of projects
+    in a row:
+
+        ./texdown.pl Dissertation -l -c -p roilr rd Dissertation
+
+    This will tell **TeXDown**, again, to use Dissertation.cfg out of the
+    same directory where the referred to Dissertation.scriv lives, and to
+    then process the scopes roilr, rd, and Dissertation, in that order.
+
+    Of course, this somehow only makes sense if you can specify a different
+    output file, or intermediate processing, which I've not yet implemented.
+    But that's, at the end, once it is done, the what \[GLOBAL\] section will
+    be for: There we'll be able to specify e.g. the default LaTeX command
+    to process the output.
 
 - **-documentation**
 
@@ -203,11 +288,11 @@ upgrade your CPAN:
 
 Like man cpan says about upgrading all modules, "Blindly doing this
 can really break things, so keep a backup." In other words, for
-TeXdown, use the upgrade only if an install failed.
+**TeXDown**, use the upgrade only if an install failed.
 
 ## RUNNING as a FILTER
 
-When running as a filter, **texdown.pl** will simply take the
+When running as a filter, **TeXDown** will simply take the
 content from STDIN and process it, taking any command line
 parameters in addition. So for example, you could call it like
 this:
@@ -225,11 +310,11 @@ the output into something else. For example a file:
 
 And of course even to itself:
 
-    cat document.tex | ./texdown.pl -dontparse | ./texdown.pl -v
+    cat document.tex | ./texdown.pl -n | ./texdown.pl -v
 
 ## RUNNING as a SCRIPT
 
-If running as a script, **texdown.pl** will take all parameters
+If running as a script, **TeXDown** will take all parameters
 that it does not understand as either command line parameters
 or as values thereof, and try to detect whether these are files.
 It will then process those files one after another, in the order
@@ -238,7 +323,7 @@ STDOUT. So for example:
 
     ./textdown.pl -v test.tex test2.tex test3.tex >document.tex
 
-In case you want to run **texdown.pl** against data that is in a
+In case you want to run **TeXDown** against data that is in a
 Scrivener database, you just pass the directory of that database
 to it. So let's assume we've a Scrivener database **Dissertation**
 in the current directory.
@@ -256,7 +341,7 @@ the disk. Scrivener holds its files in a directory like
 **Dissertation.scriv/Files/Docs** with numbered filenames like
 123.rtf.
 
-So what **texdown.pl** will do is that it will first detect whether
+So what **TeXDown** will do is that it will first detect whether
 a file given on the command line is actually a Scrivener database,
 then it will try to locate the **.scrivx** file within that, to 
 then parse it in order to find out the root folder that you wanted
@@ -271,17 +356,17 @@ in the current directory, you can do this:
 
 Notice that we did not use the -projects parameter to specify the root
 folder at which you want to start your processing. If this is the
-case, **texdown.pl** will try to locate a folder that has the same
+case, **TeXDown** will try to locate a folder that has the same
 name as the database - in the above example, it will just use
 **Dissertation**.
 
 So if you want to specify another root folder, you can do so:
 
-    ./texdown.pl Dissertation -projects Content
+    ./texdown.pl Dissertation -p Content
 
 Piping the result into some file:
 
-    ./texdown.pl Dissertation -projects Content >document.tex
+    ./texdown.pl Dissertation -p Content >document.tex
 
 If you do not have the Scrivener project in your working directory,
 you can chose any other way to call it, so like:
@@ -307,7 +392,7 @@ of the file. It is pretty well documented.
 
 # LIMITATIONS
 
-At this moment, **texdown.pl** works on single lines only. In other
+At this moment, **TeXDown** works on single lines only. In other
 words, we do not support tags that span multiple lines. We have just
 added limited, and ugly, support for itemizes, which works sufficiently
 well with Scrivener: Scrivener gives at best two levels of itemizes
@@ -334,7 +419,7 @@ Here are the options that we support at this moment:
 
 Very simply, start your line with one or multiple hash marks (#).
 The number you use defines the level of the section heading. Also,
-**texdown.pl** will create labels for each section, where the label
+**TeXDown** will create labels for each section, where the label
 is the same as the section name, with all spaces replaced by dashes:
 
 \# This is a part
@@ -411,7 +496,7 @@ Consider this scenario:
     Perl script, you can \emph{very much} simplify the problem
     \citep[ibd.]{Nott:2016}.
 
-The previous paragraph, in TeXdown Markdown, can be written like
+The previous paragraph, in **TeXDown** Markdown, can be written like
 this:
 
     [a#Nott:2016] wrote about Markdown, that "citations
@@ -502,12 +587,12 @@ Finally, for emphasizing things, you can do this:
 
 ## GOING CRAZY
 
-Let's do a crazy thing: Use a two line TeXdown file:
+Let's do a crazy thing: Use a two line **TeXDown** file:
 
 (As \[a#Nott:2016\] said, "TeXdown is quite easy." 
 (20)\[yp#Nott:2002\])\_\_\[a#Nott:2005\]  had \*\*already\*\* said:  "This is the \*\*right\*\* thing to do" (20--23, \*\*emphasis\*\* ours)\[ypi#Nott:2016\]\_\_\_\_Debatable.\_\_
 
-and parse it by TeXdown;
+and parse it by **TeXDown**;
 
 cat crazy.tex | ./texdown.pl
 
