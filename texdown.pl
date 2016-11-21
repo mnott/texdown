@@ -1117,11 +1117,7 @@ TeXDown  -  Use Markdown with LaTeX, and particularly with Scrivener.
              while at the same time having the full power of LaTeX
              available, immediately.
 
-<<<<<<< HEAD
              To do so, TeXDown does several things:
-=======
-             To do so, B<TeXDown> does several things:
->>>>>>> dff9414a560b906a2482eaed04482a76d2b05a94
 
              Parsing LaTeX files that contain some Markdown into
              LaTeX files.
@@ -1162,11 +1158,7 @@ Command line parameters can take any order on the command line.
                     (alternative: -all)
    -l               Only list the ids and section titles of what would
                     have been included (alternative: -list)
-<<<<<<< HEAD
    -c               Use a configuration file to drive TeXDown.
-=======
-   -c               Use a configuration file to drive B<TeXDown>.
->>>>>>> dff9414a560b906a2482eaed04482a76d2b05a94
                     (alternative: -cfg)
 
    Other Options:
