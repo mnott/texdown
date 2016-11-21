@@ -64,6 +64,7 @@ use warnings;
  
 binmode STDOUT, ":utf8";
 use utf8;
+use Config::Simple;
 use Getopt::Long;
 use Pod::Usage;
 use File::Basename;
@@ -72,15 +73,16 @@ use RTF::TEXT::Converter;
 use XML::LibXML;
 use Tie::IxHash;
 
+my $cfg;
+my $config;
 my @projects = ();
 my $dontparse;
 my $debug;
 my $man = 0;
 my $help = 0;
 my $documentation = 0;
-my $listsections  = 0;
-my $listids       = 0;
-my $incompilation = 0;
+my $list          = 0;
+my $all           = 0;
 
 my $itemlevel   = 0;  # for itemizes: level; 0, 1 or 2
 my $currentitem = ""; # current bullet kind: "", "m" or "t"
@@ -89,15 +91,15 @@ my $currentitem = ""; # current bullet kind: "", "m" or "t"
 #
 # Parse command line
 #
-GetOptions ('projects:s'        => \@projects,      # if scriv, document folder(s) to start with
-            'dontparse'         => \$dontparse,     # if set, dont parse md
+GetOptions ('c|cfg:s'           => \$cfg,           # if set, texdown will drive itself by cfg
+            'p|projects:s{,}'   => \@projects,      # if scriv, document folder(s) to start with
+            'n|no|nothing'      => \$dontparse,     # if set, dont parse md
             'v|d|debug|verbose' => \$debug,         # if set, print some debug info
             'help|?|h'          => \$help,          # if set, print help screen
             'man'               => \$man,           # if set, print manual
             'documentation'     => \$documentation, # if set, recreate the documentation
-            'listsections'      => \$listsections,  # if set, only list section names
-            'listids'           => \$listids,       # if set, only list object ids
-            'incompilation'     => \$incompilation, # if set, only list items "in compilation"
+            'l|list'            => \$list,          # if set, only list section ids and names
+            'a|all'             => \$all,           # if set, not only list items "in compilation"
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
@@ -315,17 +317,31 @@ if ($documentation) {
   exit 0;
 }
 
+
 #
-# Decide which processing ot use: STDIN or files
-#
-if (-t STDIN) {
-  if (@ARGV > 0) {
-    runOnFiles (@ARGV);
-  } else {
-    pod2usage(1);
-  }
+# If we have a configuration file set, we use that
+# as to drive ourselves, i.e. we assume we'll find
+# more information in there as to which projects to
+# parse, in which order, and to which destination,
+# and what to do with that destination.
+# 
+# This essentially creates a wrapper around texdown.
+# 
+if ($cfg) {
+  runFromCfg (@ARGV);
 } else {
-  runAsFilter();
+  #
+  # Decide which processing ot use: STDIN or files
+  #
+  if (-t STDIN) {
+    if (@ARGV > 0) {
+      runOnFiles (@ARGV);
+    } else {
+      pod2usage(2);
+    }
+  } else {
+    runAsFilter();
+  }
 }
 
 
@@ -358,6 +374,7 @@ sub nospace {
   return $str;
 }
 
+
 #
 # Drop any Markdown (for auto generated header labels)
 # 
@@ -367,6 +384,7 @@ sub nomarkdown {
 
   return $str;
 }
+
 
 #
 # parse
@@ -599,6 +617,179 @@ sub itemize {
 
 
 #
+# cfg
+# 
+# Get some configuration variable value. The configuration
+# file can hold scope sections such as
+# 
+#   [GLOBAL]
+#   var1=val1
+#   var3=val3
+#   
+#   [xyz]
+#   var1=val2
+#   var4=val4
+#   
+# In the above case, if we had asked for the value of var1 in
+# the xyz scope, we would get val2; if we had asked for the
+# value of var4 in the xyz scope, we would default to val3, etc.
+# 
+# $scope : The variable scope to get the variable from
+# $var   : The variable name
+# returns: The variable value from it's scope, if available, or
+#          from GLOBAL scope, if available. Else an empty string.
+#          
+sub cfg {
+  my ($scope, $var) = (@_);
+
+  if(!$config) {
+    return "";
+  }
+
+  my $val = $config->param($scope.".".$var);
+
+  if(!$val) {
+    $val = $config->param("GLOBAL.".$var);
+  }
+
+  if(!$val) {
+    return "";
+  }
+
+  return $val;
+}
+
+
+#
+# runFromCfg
+# 
+# Run from a configuration file
+# 
+sub runFromCfg {
+  my ($dir, $file) = (@_);
+
+  if (! -f $cfg) {
+    pod2usage({ -message => "\nConfiguration file $cfg not found\n" ,
+                -exitval => 2,
+              });
+  }
+
+  #
+  # If we did not specify a project, let's attempt to
+  # resolve it.
+  # 
+  if (@projects == 0) {
+    my ($d, $f, $p) = resolveFiles("$dir");
+
+    $projects[0] = $p;
+  }
+
+  #
+  # Capture current project and empty
+  # out $projects - we are going to
+  # read the projects from the configuration
+  # file now.
+  # 
+  my @back = @projects; 
+  @projects=();
+
+  #
+  # If we had been given a configuration file, make sure
+  # we also have got a scrivx file.
+  # 
+  if (!$file) {
+    ($dir, $file) = resolveFiles("$dir");
+  }
+
+  foreach my $curproj (@back) {
+    #
+    # Initialize the Configuration File
+    # 
+    $config = new Config::Simple($cfg);
+
+    my $pr = cfg($curproj, "p");
+
+    if (ref($pr) eq 'ARRAY') {
+      @projects = @$pr;
+    } else {
+      $projects[0] = $pr;
+    }
+
+    parseScrivener($dir, $file);
+  }
+
+  #
+  # Restore the projects
+  # 
+  @projects = @back;
+}
+
+
+#
+# resolveFiles
+# 
+# Resolves the location and name of a file. For Scrivener,
+# its content for a project like Dissertation is held in a
+# directory Dissertation.scriv, which contains, among other
+# things, an XML file Dissertation.scrivx. This function
+# will resolve the location of the Dissertation.scriv
+# directory, and return its directory, file/directory name,
+# as well as its base name (in this case: Dissertation),
+# for further processing.
+# 
+# $_ : Some file name or location to resolve.
+# 
+# returns:
+#   $dir    : The Directory of the File, e.g., Dissertation.scriv
+#   $file   : The Filename of the XML File, e.g., Dissertation.scriv/Dissertation.scrivx
+#   $project: The Scrivener Directory base name, or an empty String
+#
+sub resolveFiles {
+  my $arg = shift;
+  if (-e "$arg" || -e "$arg.scriv") {
+    my ($fname, $fpath, $fsuffix) = fileparse($arg, qr/\.[^.]*/);
+    my $basename = basename($arg, qr/\.[^.]*/);
+    my $dirname = dirname($arg);
+
+    #
+    # If we have an $fname, it can still be a directory,
+    # because Scrivener saves its files in "files," which
+    # are really directories. So we have to test some cases.
+    # 
+    if ($fname ne "") {
+      if (-d "$fpath$fname.$fsuffix") {
+        $fpath = "$fpath$fname$fsuffix";
+      } elsif (-d "$fpath$fname.scriv") {
+        $fsuffix = ".scriv";
+        $fpath = "$fpath$fname$fsuffix";
+      } else {
+        $fpath = $_;
+      }
+    } else {
+      if (-d "$fpath") {
+        $fpath =~ s/(.*?\.scriv).*/$1/;
+      }
+    }
+
+    my $found = $fpath;
+    ($fname, $fpath, $fsuffix) = fileparse($fpath, qr/\.[^.]*/);
+
+    if (-d "$found" && -e "$found/$fname.scrivx") {
+      my $dir  = "$found";
+      my $file = "$fpath$fname.scriv/$fname.scrivx";
+
+      return ($dir, $file, $fname);
+    } elsif (-f "$found") {
+      my $dir  = "$fpath";
+      my $file = "$found";
+
+      return ($dir, $file, "");
+    } 
+  }
+}
+
+
+#
 # runOnFiles
 #
 # Do the processing on files
@@ -607,51 +798,100 @@ sub itemize {
 # arguments: The files to parse
 #
 sub runOnFiles {
-  while ($_ = shift(@ARGV)) {
+  foreach (@ARGV) {
     if (-e "$_" || -e "$_.scriv") {
-      my ($fname, $fpath, $fsuffix) = fileparse($_, qr/\.[^.]*/);
-      my $basename = basename($_, qr/\.[^.]*/);
-      my $dirname = dirname($_);
+      my ($dir, $file, $project) = resolveFiles($_);
 
-      #
-      # If we have an $fname, it can still be a directory,
-      # because Scrivener saves its files in "files," which
-      # are really directories. So we have to test some cases.
-      # 
-      if ($fname ne "") {
-        if (-d "$fpath$fname.$fsuffix") {
-          $fpath = "$fpath$fname$fsuffix";
-        } elsif (-d "$fpath$fname.scriv") {
-          $fsuffix = ".scriv";
-          $fpath = "$fpath$fname$fsuffix";
-        } else {
-          $fpath = $_;
-        }
-      } else {
-        if (-d "$fpath") {
-          $fpath =~ s/(.*?\.scriv).*/$1/;
-        }
-      }
-
-      my $found = $fpath;
-      ($fname, $fpath, $fsuffix) = fileparse($fpath, qr/\.[^.]*/);
-
-      if (-d "$found" && -e "$found/$fname.scrivx") {
-        my $dir  = "$found";
-        my $file = "$fpath$fname.scriv/$fname.scrivx";
+      if ($project ne "") {
+        #
+        # Scrivener
+        # 
 
         #
-        # If we don't have a project, as a fallback, we default
-        # to the $fname
+        # Option 1:
         # 
-        $projects[0] = $fname if (@projects == 0);
+        # - Indirect project definition by configuration file...
+        # - ...but don't even say, which configuration file to use
+        # - ...or even, which project to use from that file
+        #
+        # If we don't have a project, as a fallback, we default
+        # to the $fname, and if we do have a $fname.cfg, and the
+        # cfg option was not set on the command line, we 
+        # default to it using the $fname as project to run.
+        # 
+        # This is invoked e.g. like so:
+        # 
+        # ./texdown.pl Dissertation -l -c
+        # 
+        # We are hence working on Dissertation.scriv, but we are
+        # not even saying which project we want to run, and neither
+        # are we saying which configuration file we want to use. We
+        # just say that we want to use a configuration file. In this
+        # case, the program will assume Dissertation.cfg as 
+        # configuration file, and also, Dissertation as project.
+        # 
+        if (@projects == 0) {
+          $projects[0] = $project;
+            
+          if (defined($cfg)) {
+            if (-f "$dir/../$project.cfg") {
+              $cfg = "$dir/../$project.cfg";
+              runFromCfg($dir, $file);
 
+              next;
+            }
+          }
+        }
+
+
+        #
+        # Option 2:
+        # 
+        # - Indirect project definition by configuration file...
+        # - ...but don't even say, which configuration file to use
+        # - yet at least, we say which project(s) to use
+        #
+        # If we did have projects, and cfg set, but empty,
+        # we still try to find a default configuration,
+        # rather than running on the projects ourselves
+        # 
+        # This is invoked e.g. like so:
+        # 
+        # ./texdown.pl Dissertation -l -c -p roilr
+        # 
+        # We are hence working on the Dissertation.scriv,
+        # and we are saying we want to use a configuration
+        # file, without specifying its name. Hence the
+        # program will attempt to use Dissertation.cfg.
+        # We also said that we want to use a given project
+        # that's defined in the configuration file, in this
+        # case roilr.
+        # 
+        if (@projects > 0 && defined($cfg) && $cfg eq "") {
+          if (-f "$dir/../$project.cfg") {
+            $cfg = "$dir/../$project.cfg";
+            runFromCfg($dir, $file);
+
+            next;
+          }
+        }
+
+        #
+        # This is the standard case, invoked e.g. like so:
+        # 
+        # ./texdown.pl Dissertation -l -p /Trash
+        # 
+        # We are working on Dissertation.scriv, and we say we
+        # want to use a project that's actually like this available
+        # in that file (we can use absolute or relative names).
+        # 
         parseScrivener ($dir, $file);
-      } elsif (-f "$found") {
-        my $dir  = "$fpath";
-        my $file = "$found";
+      } else {
+        #
+        # Plain Text
+        # 
         parsePlain ($dir, $file);
-      } 
+      }
     }
   }  
 }
@@ -682,6 +922,7 @@ sub runAsFilter {
 #
 sub parseScrivener {
   my ($dir, $file) = (@_);
+
   if ($debug) {
     print "% Scrivener Processing...\n";
     print "% Projects   : " . join( ', ', @projects ) . "\n";
@@ -702,15 +943,31 @@ sub parseScrivener {
       my $leaf = 0;
       my $path = "/ScrivenerProject/Binder";
       foreach my $location (split("/", $project)) {
-        if ($location ne "") { 
-          my $subpath = '/BinderItem[Title/text() = "'."$location".'"]/Children';
-          my $childcount = $doc->findvalue("count($path$subpath)");
+        if ($location ne "") {
+          my $subpath = '/BinderItem[Title/text() = "'."$location".'"]';
+          my $parentNode = $doc->findnodes($path.$subpath);
 
-          if ($childcount == 0) {
+          #
+          # If the parentNode does not exist, e.g. because of a typo,
+          # we don't follow it up.
+          # 
+          if (!$parentNode) {
+            $path .= "$subpath/Children";
+            last;
+          }
+
+          #
+          # Cound the children to detect leaves
+          # 
+          my $childcount = $doc->findvalue("count($path$subpath/Children)");
+
+          my $parentType = @$parentNode[0]->getAttribute("Type");
+
+          if ($childcount == 0 || $parentType eq "Text") {
             $path .= '/BinderItem[Title/text() = "'."$location".'"]';
             $leaf = 1;
           } else {
-            $path .= "$subpath";
+            $path .= "$subpath/Children";
           }
         }
       }
@@ -723,10 +980,10 @@ sub parseScrivener {
       
     } else {
       #
-      # Relative location
+      # Relative location; /Children/* are being resolved by recursion
       # 
-      foreach my $binderItem ($doc->findnodes('//BinderItem[Title/text() = "'."$project".'"]/Children/*')) {
-        printNode($binderItem, "", 0, $dir);
+      foreach my $binderItem ($doc->findnodes('//BinderItem[Title/text() = "'."$project".'"]')) {
+        printNode($binderItem, "", 0, $dir)
       }
     }
   }
@@ -758,22 +1015,14 @@ sub printNode {
   # given node has that field unchecked, we don't print
   # that node, and we don't dive into it's children.
   # 
-  return if($incompilation && $includeInCompile ne "Yes");
+  return if(!$all && $includeInCompile ne "Yes");
 
   #
   # If the current node is a text node, we have to print it
   # 
   if($docType eq "Text") {
-    if ($listsections || $listids) {
-      my $printline = "";
-
-      if ($listids) {
-        $printline = sprintf("[%8d] ", $docId);
-      }
-
-      if ($listsections) {
-        $printline .= "$parentTitle";
-      }
+    if ($list) {
+      my $printline = sprintf("[%8d] %s", $docId, $parentTitle);
 
       print "$printline\n";
     } else {
@@ -868,7 +1117,7 @@ TeXDown  -  Use Markdown with LaTeX, and particularly with Scrivener.
              while at the same time having the full power of LaTeX
              available, immediately.
 
-             To do so, texdown.pl does several things:
+             To do so, B<TeXDown> does several things:
 
              Parsing LaTeX files that contain some Markdown into
              LaTeX files.
@@ -897,16 +1146,20 @@ Command line parameters can take any order on the command line.
    -help            brief help message (alternatives: ?, -h)
    -man             full documentation (alternatives: -m)
    -v               verbose (alternatives: -d, -debug, -verbose)
-   -dontparse       do not actually parse Markdown into LaTeX
+   -n               do not actually parse Markdown into LaTeX
+                    (alternative: -no, -nothing)
 
    Scrivener Options:
 
-   -projects        The scrivener object name(s) to start with
-   -incompilation   Only include stuff that was marked for In Compilation
-
-   -listids         Only list the ids of the titles that would have been included
-   -listsections    Only list the titles that would have been included
-                    Both -listids and -listsections can be combined
+   -p               The scrivener object name(s) to start with.
+                    (alternative: -project)
+   -a               Only include all objects, not only those that
+                    were marked as to be In Compilation.
+                    (alternative: -all)
+   -l               Only list the ids and section titles of what would
+                    have been included (alternative: -list)
+   -c               Use a configuration file to drive B<TeXDown>.
+                    (alternative: -cfg)
 
    Other Options:
 
@@ -930,11 +1183,11 @@ Prints the manual page and exits.
 Put LaTeX comments into the output with the name of the file that
 has been parsed.
 
-=item B<-dontparse>
+=item B<-n>
 
 Don't actually parse the Markdown Code into LaTeX code.
 
-=item B<-projects>
+=item B<-p>
 
 The root object(s) in a Scrivener database within the processing
 should start. If not given, and if yet running on a Scrivener
@@ -942,10 +1195,14 @@ database, the script will assume the root object to have the
 same name as the Scrivener database.
 
 If you want to process multiple object trees, just use this
-command line argument multiple times. For example, you can
-use
+command line argument multiple times, or pass multiple arguments
+to it. For example, you can use
 
-  ./texdown.pl Dissertation -projects FrontMatter -projects Content -projects BackMatter
+  ./texdown.pl Dissertation -p FrontMatter Content BackMatter
+
+or
+
+  ./texdown.pl Dissertation -p FrontMatter -p Content -p BackMatter
 
 Each object name can be either an actual name of an object,
 so for example, if you have an object
@@ -964,41 +1221,119 @@ use absolute path names. So assume you have some folder that contains
 your front matter and back matter for articles, and then you have
 some literature folder somewhere, you can do this:
 
-  ./texdown.pl Dissertation -projects /LaTeX/Articles/FrontMatter -projects /LaTeX/Articles/BackMatter -projects Literature
+  ./texdown.pl Dissertation -p /LaTeX/Articles/FrontMatter /LaTeX/Articles/BackMatter Literature
 
 As a side effect, if you want to print out the entire object hierarchy
 of your scrivener database, you can do this:
 
-  ./texdown.pl Dissertation -projects / -listsections
+  ./texdown.pl Dissertation -p / -l
 
-And if you also want to see which file names correspond to which object,
-you can add the -listids option:
+This will also give you a clue about the associated RTF file names,
+as the IDs that are listed correspond directly to the rtf file names
+living in the Files/Docs subdirectory of the Scrivener folder.
 
-  ./texdown.pl Dissertation -projects / -listsections -listids
+=item B<-a>
 
-=item B<-incompilation>
-
-Respect the Scrivener metadata field IncludeInCompilation, which
-can be set from Scrivener. Since it can be set at every level, if
+Disrespect the Scrivener metadata field IncludeInCompilation, which
+can be set from Scrivener. By default, we respect this metadata 
+field. Since it can be set at every level, if
 we detect it to be unset at level n in the document tree, we will
 not follow down into the children of that tree, even if they have
 it set. This allows us to easily exclude whole trees of content 
-from the compilation.
+from the compilation - except if we chose to include all nodes
+using the -a switch.
 
-=item B<-listsections>
-
-Rather than actually printing the parsed content, only print
-the document titles that would have been included. Can be combined
-with -listids.
-
-=item B<-listids>
+=item B<-l>
 
 Rather than actually printing the parsed content, only print
-the document IDs that would have been included. Those document
-IDs correspond to RTF files which you would find in the Files/Docs 
-subdirectory; hence this option might be useful for you to understand
-which file corresponds to which Scrivener object. This option can be
-combined with -listsections.
+the document IDs and titles that would have been included. 
+
+Those document IDs correspond to RTF files which you would find 
+in the Files/Docs subdirectory; hence this option might be useful
+for you to understand which file corresponds to which Scrivener object.
+
+=item B<-c>
+
+Use a configuration file to drive B<TeXDown>. This essentially wraps
+B<TeXDown> in itself. If you use -c, you can remove the need to specify
+all your projects on the command line. Here is a sample configuration
+file:
+
+  ;
+  ; TeXDown Configuration File
+  ;
+  [GLOBAL]
+  
+  [Dissertation]
+  p=Dissertation
+  
+  [rd]
+  ; Research Design
+  p=/LaTeX/Article/Frontmatter, "Research Design", /LaTeX/Article/Backmatter
+  
+  [roilr]
+  ; ROI - Literature Review
+  p=/LaTeX/Article/Frontmatter, "ROI - Literature Review", /LaTeX/Article/Backmatter
+
+Let's assume we have saved this file as Dissertation.cfg, into
+the same directory where we are also having our Scrivener directory
+Dissertation.scriv. The above file works as follows: You can specify
+some variables with "scopes" (like, "rd"), and this will serve as an
+indirection to define which projects really to use.
+
+So for example, if you call the program like so (I'm using -l in the
+subsequent examples because listing the assets rather than converting
+them will make it clearer for you what happens; at the end, you'd of
+course remove the -l and pipe the output somewhere):
+
+  ./texdown.pl Dissertation -l -c
+
+you are not even saying which project or which configuration file to
+use. So what B<TeXDown> will do is to assume that the configuration
+file lives in the same directory that your Dissertation.scriv is in,
+and is named Dissertation.cfg. It will also assume that you expect to
+have a scope [Dissertation] within that file, and within that section,
+you have a project definition like p=something.
+
+If you are more specific, you can make a call like so:
+
+  ./texdown.pl Dissertation -l -c -p roilr
+
+In that case, you are still not specifying your configuration file, so
+it will be treated as in the previous case. But you are saying that you
+want to call the scope [roilr], in which case the project definition
+is taken from that scope.
+
+To be even more specific, you can explicitly say which configuration
+file to use:
+
+  ./texdown.pl Dissertation -l -c Dissertation.cfg
+
+This is going to look for the Dissertation.cfg configuration file,
+in some location (you can now give a complete path to it), and since
+we yet forgot again, which project to actually use, it is going to
+default to the Dissertation scope in that file.
+
+Let's be really specific and also say, which project to use with
+that configuration file:
+
+  ./texdown.pl Dissertation -l -c Dissertation.cfg -p roilr
+
+Of course, you can now be really crazy and run a number of projects
+in a row:
+
+  ./texdown.pl Dissertation -l -c -p roilr rd Dissertation
+
+This will tell B<TeXDown>, again, to use Dissertation.cfg out of the
+same directory where the referred to Dissertation.scriv lives, and to
+then process the scopes roilr, rd, and Dissertation, in that order.
+
+Of course, this somehow only makes sense if you can specify a different
+output file, or intermediate processing, which I've not yet implemented.
+But that's, at the end, once it is done, the what [GLOBAL] section will
+be for: There we'll be able to specify e.g. the default LaTeX command
+to process the output.
+
 
 =item B<-documentation>
 
@@ -1059,12 +1394,12 @@ upgrade your CPAN:
 
 Like man cpan says about upgrading all modules, "Blindly doing this
 can really break things, so keep a backup." In other words, for
-TeXdown, use the upgrade only if an install failed.
+B<TeXDown>, use the upgrade only if an install failed.
 
 
 =head2 RUNNING as a FILTER
 
-When running as a filter, B<texdown.pl> will simply take the
+When running as a filter, B<TeXDown> will simply take the
 content from STDIN and process it, taking any command line
 parameters in addition. So for example, you could call it like
 this:
@@ -1082,11 +1417,11 @@ the output into something else. For example a file:
 
 And of course even to itself:
 
-  cat document.tex | ./texdown.pl -dontparse | ./texdown.pl -v
+  cat document.tex | ./texdown.pl -n | ./texdown.pl -v
 
 =head2 RUNNING as a SCRIPT
 
-If running as a script, B<texdown.pl> will take all parameters
+If running as a script, B<TeXDown> will take all parameters
 that it does not understand as either command line parameters
 or as values thereof, and try to detect whether these are files.
 It will then process those files one after another, in the order
@@ -1095,7 +1430,7 @@ STDOUT. So for example:
 
   ./textdown.pl -v test.tex test2.tex test3.tex >document.tex
 
-In case you want to run B<texdown.pl> against data that is in a
+In case you want to run B<TeXDown> against data that is in a
 Scrivener database, you just pass the directory of that database
 to it. So let's assume we've a Scrivener database B<Dissertation>
 in the current directory.
@@ -1113,7 +1448,7 @@ the disk. Scrivener holds its files in a directory like
 B<Dissertation.scriv/Files/Docs> with numbered filenames like
 123.rtf.
 
-So what B<texdown.pl> will do is that it will first detect whether
+So what B<TeXDown> will do is that it will first detect whether
 a file given on the command line is actually a Scrivener database,
 then it will try to locate the B<.scrivx> file within that, to 
 then parse it in order to find out the root folder that you wanted
@@ -1128,17 +1463,17 @@ in the current directory, you can do this:
 
 Notice that we did not use the -projects parameter to specify the root
 folder at which you want to start your processing. If this is the
-case, B<texdown.pl> will try to locate a folder that has the same
+case, B<TeXDown> will try to locate a folder that has the same
 name as the database - in the above example, it will just use
 B<Dissertation>.
 
 So if you want to specify another root folder, you can do so:
 
-  ./texdown.pl Dissertation -projects Content
+  ./texdown.pl Dissertation -p Content
 
 Piping the result into some file:
 
-  ./texdown.pl Dissertation -projects Content >document.tex
+  ./texdown.pl Dissertation -p Content >document.tex
 
 If you do not have the Scrivener project in your working directory,
 you can chose any other way to call it, so like:
@@ -1164,7 +1499,7 @@ of the file. It is pretty well documented.
 
 =head1 LIMITATIONS
 
-At this moment, B<texdown.pl> works on single lines only. In other
+At this moment, B<TeXDown> works on single lines only. In other
 words, we do not support tags that span multiple lines. We have just
 added limited, and ugly, support for itemizes, which works sufficiently
 well with Scrivener: Scrivener gives at best two levels of itemizes
@@ -1192,7 +1527,7 @@ Here are the options that we support at this moment:
 
 Very simply, start your line with one or multiple hash marks (#).
 The number you use defines the level of the section heading. Also,
-B<texdown.pl> will create labels for each section, where the label
+B<TeXDown> will create labels for each section, where the label
 is the same as the section name, with all spaces replaced by dashes:
 
 # This is a part
@@ -1273,7 +1608,7 @@ Consider this scenario:
   Perl script, you can \emph{very much} simplify the problem
   \citep[ibd.]{Nott:2016}.
 
-The previous paragraph, in TeXdown Markdown, can be written like
+The previous paragraph, in B<TeXDown> Markdown, can be written like
 this:
 
   [a#Nott:2016] wrote about Markdown, that "citations
@@ -1367,12 +1702,12 @@ Finally, for emphasizing things, you can do this:
 
 =head2 GOING CRAZY
 
-Let's do a crazy thing: Use a two line TeXdown file:
+Let's do a crazy thing: Use a two line B<TeXDown> file:
 
 (As [a#Nott:2016] said, "TeXdown is quite easy." 
 (20)[yp#Nott:2002])__[a#Nott:2005]  had **already** said:  "This is the **right** thing to do" (20--23, **emphasis** ours)[ypi#Nott:2016]____Debatable.__
 
-and parse it by TeXdown;
+and parse it by B<TeXDown>;
 
 cat crazy.tex | ./texdown.pl
 
