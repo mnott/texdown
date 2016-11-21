@@ -699,12 +699,23 @@ sub parseScrivener {
       #
       # Absolute location
       #
+      my $leaf = 0;
       my $path = "/ScrivenerProject/Binder";
       foreach my $location (split("/", $project)) {
-        if ($location ne "") { $path .= '/BinderItem[Title/text() = "'."$location".'"]/Children'; }
+        if ($location ne "") { 
+          my $subpath = '/BinderItem[Title/text() = "'."$location".'"]/Children';
+          my $childcount = $doc->findvalue("count($path$subpath)");
+
+          if ($childcount == 0) {
+            $path .= '/BinderItem[Title/text() = "'."$location".'"]';
+            $leaf = 1;
+          } else {
+            $path .= "$subpath";
+          }
+        }
       }
 
-      $path .= "/*";
+      $path .= "/*" unless $leaf;
 
       foreach my $binderItem ($doc->findnodes($path)) {
         printNode($binderItem, "", 0, $dir);
