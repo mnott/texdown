@@ -83,6 +83,7 @@ my $help = 0;
 my $documentation = 0;
 my $list          = 0;
 my $all           = 0;
+my @showid        = 0;
 
 my $itemlevel   = 0;  # for itemizes: level; 0, 1 or 2
 my $currentitem = ""; # current bullet kind: "", "m" or "t"
@@ -100,6 +101,7 @@ GetOptions ('c|cfg:s'           => \$cfg,           # if set, texdown will drive
             'documentation'     => \$documentation, # if set, recreate the documentation
             'l|list'            => \$list,          # if set, only list section ids and names
             'a|all'             => \$all,           # if set, not only list items "in compilation"
+            'i|id:s'            => \@showid,        # if set, show the scrivener path for the doc id
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
@@ -933,6 +935,32 @@ sub parseScrivener {
   my $doc = XML::LibXML->load_xml(location => $file);
 
   #
+  # If we are asked to retrieve a path for adocument id, we do only that.
+  # 
+  if (@showid > 0) {
+    foreach my $id (@showid) {
+      my @binderItems = $doc->findnodes('/ScrivenerProject/Binder//BinderItem[@ID="'.$id.'"]');
+
+      foreach my $binderItem (@binderItems) {
+        my $binderItemName = $binderItem->nodeName; 
+        my $currentNode    = $binderItem;
+        my $binderItemPath = "";
+
+        while($currentNode->nodeName ne "Binder") {
+          if ($currentNode->nodeName eq "BinderItem") {
+            $binderItemPath = $currentNode->find("Title")->to_literal."/$binderItemPath";
+          }
+          $currentNode = $currentNode->parentNode();
+        }
+
+        print "/$binderItemPath\n";
+      }
+    }
+    exit 0;
+  }
+
+
+  #
   # Check whether we have an absolute or a relative location
   # 
   foreach my $project (@projects) {
@@ -1160,6 +1188,7 @@ Command line parameters can take any order on the command line.
                     have been included (alternative: -list)
    -c               Use a configuration file to drive TeXDown.
                     (alternative: -cfg)
+   -i               Resolve the Scrivener path for a given document id(s).
 
    Other Options:
 
@@ -1334,6 +1363,39 @@ But that's, at the end, once it is done, the what [GLOBAL] section will
 be for: There we'll be able to specify e.g. the default LaTeX command
 to process the output.
 
+
+=item B<-i>
+
+This option allows you to find the path to a Scrivener document in
+your library, if you only know its document id. This is useful if
+you use, for example, a find command on the command line, searching
+for a given content. So for example, let's define a bash command
+that will allow you to search for file contents:
+
+  ff () { find . -type f -iname "*$1" -print0 | xargs -0 grep -i "$2" ; }
+
+Just enter the above line at the command line. If you like it, you can
+put it into your ~/.profile
+
+Let's use that to find some content in our Scrivener directory. I am
+looking for all the files where I happen to have used the command
+\parta. Here's how to look for it (from the current directory):
+
+  ff rtf parta
+  ./Dissertation.scriv/Files/Docs/216.rtf:\\def\\parta\{Thesis\}\
+  ./Dissertation.scriv/Files/Docs/281.rtf:\\def\\parta\{Thesis\}\
+
+etc. So this is great because it shows me where I was using that
+command. The question of course is, where will I find these documents
+from within Scrivener? Here's how:
+
+  ./texdown.pl -i 216 281
+  /Dissertation/
+  /Trash/LaTeX - Front Matter/
+
+Thus we can now easily look at the /Dissertation node, which contains
+that \parta statement, while we can probably ignore the other document
+that was found in the trash.
 
 =item B<-documentation>
 
