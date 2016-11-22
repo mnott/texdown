@@ -1210,7 +1210,7 @@ sub commentsParser {
 
     #{\field{\*\fldinst{HYPERLINK "scrivcmt://5CE6FC1A-AE63-439D-89BC-3232E9CD0478"}}{\fldrslt footnote text}}
     
-    $rtf =~ s!\{\\field.*?scrivcmt://$footnoteId"\}\}\{\\fldrslt .*?\}\}!__${footnotePlain}__!g;
+    $rtf =~ s!\{\\field.*?scrivcmt://$footnoteId"\}\}\{\\fldrslt (.*?)\}\}!\1__${footnotePlain}__!g;
   }
 
   #
