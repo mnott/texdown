@@ -807,7 +807,7 @@ sub runOnFiles {
     if (-e "$_" || -e "$_.scriv") {
       my ($dir, $file, $project) = resolveFiles($_);
 
-      if ($project ne "") {
+      if (defined($project) && $project ne "") {
         #
         # Scrivener
         # 
@@ -1107,6 +1107,9 @@ sub printNode {
 #
 sub parsePlain {
   my ($dir, $file) = (@_);
+
+  if(!defined($file)) { return; }
+
   if ($debug) {
     print "% Plain processing...\n";
     print "% dir  : $dir\n";
