@@ -72,6 +72,7 @@ use Data::Dumper;
 use RTF::TEXT::Converter;
 use XML::LibXML;
 use Tie::IxHash;
+use Term::ANSIColor qw( colored );
 
 my $cfg;
 my $config;
@@ -84,6 +85,7 @@ my $documentation = 0;
 my $list          = 0;
 my $all           = 0;
 my @showid        = 0;
+my $search        = "";
 
 my $itemlevel   = 0;  # for itemizes: level; 0, 1 or 2
 my $currentitem = ""; # current bullet kind: "", "m" or "t"
@@ -102,6 +104,7 @@ GetOptions ('c|cfg:s'           => \$cfg,           # if set, texdown will drive
             'l|list'            => \$list,          # if set, only list section ids and names
             'a|all'             => \$all,           # if set, not only list items "in compilation"
             'i|id:s'            => \@showid,        # if set, show the scrivener path for the doc id
+            's|search:s'        => \$search,        # if set, search inside scrivener for regex
 ) or pod2usage(2);
 
 pod2usage(1) if $help;
@@ -937,7 +940,7 @@ sub parseScrivener {
   #
   # If we are asked to retrieve a path for adocument id, we do only that.
   # 
-  if (@showid > 0) {
+  if (@showid > 1) {
     foreach my $id (@showid) {
       my @binderItems = $doc->findnodes('/ScrivenerProject/Binder//BinderItem[@ID="'.$id.'"]');
 
@@ -953,7 +956,7 @@ sub parseScrivener {
           $currentNode = $currentNode->parentNode();
         }
 
-        print "/$binderItemPath\n";
+        print "/$binderItemPath\n" unless $id == 0;
       }
     }
     exit 0;
@@ -1061,10 +1064,25 @@ sub printNode {
         if($debug) {
           $line = "\n\n<!--\n%\n%\n% ". $docId . " -> " . $docTitle . "\n%\n%\n-->\n";
         }
-        $line .= rtf2txt("$dir/Files/Docs/$docId.rtf");
-    
-        $line = parse($line) unless $dontparse;  
-        print $line . "\n";
+        my $curline = rtf2txt("$dir/Files/Docs/$docId.rtf");
+
+        #
+        # If we are asked to search for something, we intepret the
+        # search string as (potential) regex, and search the files,
+        # but don't do anything else.
+        # 
+        if ($search ne "") {
+          $curline = parse($curline) unless $dontparse;
+          if ($curline =~ m/(.{0,30})($search)(.{0,30})/m) {
+            my $printline = sprintf("[%8d] %s: %s%s%s", $docId, $parentTitle, colored($1, 'green'), colored($2, 'red'), colored($3, 'green'));
+            print "$printline\n";
+          }
+        } else {
+          $line .= $curline;
+      
+          $line = parse($line) unless $dontparse;  
+          print $line . "\n";
+        }
       }
     }
   }
@@ -1189,6 +1207,9 @@ Command line parameters can take any order on the command line.
    -c               Use a configuration file to drive TeXDown.
                     (alternative: -cfg)
    -i               Resolve the Scrivener path for a given document id(s).
+                    (alternative: -id)
+   -s               Search the Scrivener Content.
+                    (alternative: -search)
 
    Other Options:
 
@@ -1389,13 +1410,57 @@ etc. So this is great because it shows me where I was using that
 command. The question of course is, where will I find these documents
 from within Scrivener? Here's how:
 
-  ./texdown.pl -i 216 281
+  ./texdown.pl Dissertation -i 216 281
   /Dissertation/
   /Trash/LaTeX - Front Matter/
 
 Thus we can now easily look at the /Dissertation node, which contains
 that \parta statement, while we can probably ignore the other document
 that was found in the trash.
+
+
+=item B<-s>
+
+This option is an extension on the manual grep of the B<-i> option:
+It allows you to perform a search on any of your scrivener projects.
+The search string can be plain text, or even a regular expression.
+So here's how we are going to search for all the sections that
+we have in our roilr project as defined per configuration file:
+
+  ./texdown.pl Dissertation -c -p roilr  -s "section"
+  [     322] /ROI - Literature Review/coakes - 2011 - sustainable innovation and right to market: \section[Coakes, Smith, and Alwis (201
+  [     335] /ROI - Literature Review/desouza - 2011 - intrapreneurship managing ideas within your: \section[Desouza (2011)]{\citet{Desouz
+  [     348] /ROI - Literature Review/dyduch - 2008 - corporate entrepreneurship measurement for improving organizational: \section[Dyduch (2008)]{\citet{Dyduch:
+  [     361] /ROI - Literature Review/hornsby - 2002 - middle managers' perception of the internal environment: \section[Hornsby, Kuratko and Zahra (2
+  [     175] /ROI - Literature Review/zahra - 2015 - corporate entrepreneurship as knowledge creation and conversion: \section[Zahra (2015)]{\citet{Zahra:20
+  [     167] /ROI - Literature Review/zahra - 1993 - a conceptual model of entrepreneurship as firm behavior: \section[Zahra (1993)]{\citet{Zahra:19
+
+Let's assume we want to see only those sections which have Zahra
+in them:
+
+  ./texdown.pl Dissertation -c -p roilr -s "section.*Zahra"
+  [     361] /ROI - Literature Review/hornsby - 2002 - middle managers' perception of the internal environment: \section[Hornsby, Kuratko and Zahra (2
+  [     175] /ROI - Literature Review/zahra - 2015 - corporate entrepreneurship as knowledge creation and conversion: \section[Zahra (2015)]{\citet{Zahra:20
+  [     167] /ROI - Literature Review/zahra - 1993 - a conceptual model of entrepreneurship as firm behavior: \section[Zahra (1993)]{\citet{Zahra:19
+
+Let's search for those where Zahra is the first author, measured
+by that it is close to the section tag:
+
+  ./texdown.pl Dissertation -c -p roilr -s "section.{1,5}?Zahra"
+  [     175] /ROI - Literature Review/zahra - 2015 - corporate entrepreneurship as knowledge creation and conversion: \section[Zahra (2015)]{\citet{Zahra:2015aa}}
+  [     167] /ROI - Literature Review/zahra - 1993 - a conceptual model of entrepreneurship as firm behavior: \section[Zahra (1993)]{\citet{Zahra:1993aa}}
+
+Finally, as we can combine this with the other command line parameters,
+let's not have TeXDown parse the markdown code first, but search for
+all places where we may have left \section commands in plain LaTeX
+code:
+
+  ./texdown.pl Dissertation -p / -n -s '\\section'
+  [      94] /Dissertation/LaTeX - Front Matter/01 - Appendix/03 - Symbols/00 - Manual: % \section{Some Greek symbols}
+
+Don't forget to use four \\\\ if you use double quotes, or two \\,
+if you use single quotes.
+
 
 =item B<-documentation>
 
