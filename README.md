@@ -52,7 +52,7 @@ Command line parameters can take any order on the command line.
 
       Scrivener Options:
 
-      -p               The scrivener object name(s) to start with.
+      -p               The scrivener object name(s) (or id(s)) to start with.
                        (alternative: -project)
       -a               Only include all objects, not only those that
                        were marked as to be In Compilation.
@@ -133,6 +133,13 @@ Command line parameters can take any order on the command line.
     This will also give you a clue about the associated RTF file names,
     as the IDs that are listed correspond directly to the rtf file names
     living in the Files/Docs subdirectory of the Scrivener folder.
+
+    Finally, if you pass an integer number - like 123 - as project,
+    this will be treated as if you wanted to directly address the
+    Scrivener asset id as reported by -l. This option allows for
+    incredible shorthand, but should rather be used for testing:
+    those ids, after all, can change, and you should not base your
+    logic on them.
 
 - **-a**
 
