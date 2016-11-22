@@ -1064,7 +1064,7 @@ sub printNode {
         if($debug) {
           $line = "\n\n<!--\n%\n%\n% ". $docId . " -> " . $docTitle . "\n%\n%\n-->\n";
         }
-        my $curline = rtf2txt("$dir/Files/Docs/$docId.rtf");
+        my $curline = rtf2txt("$dir/Files/Docs/$docId");
 
         #
         # If we are asked to search for something, we intepret the
@@ -1128,17 +1128,91 @@ sub parsePlain {
 # 
 # Convert a file from rtf to a txt string.
 # 
-# $file     : The file to convert
+# $file     : The file to convert, w/o extension.
 # 
 sub rtf2txt {
 	my $file = shift;
+
+  if (-f "$file.comments") {
+    return commentsParser($file);
+  }
+
 	my $result;
 	my $self = new RTF::TEXT::Converter(output => \$result);
-	$self->parse_stream($file);
+	$self->parse_stream("$file.rtf");
 	return $result;
 }
 
 
+#
+# rtf2txt
+# 
+# Special parsing for scrivener files that also
+# have comments. If this is so, we will find:
+# 
+# * For a file 405.rtf, there is a 405.comments
+# * In 405.rtf, we will find sections such as
+#   text {\field{\*\fldinst{HYPERLINK "scrivcmt://5CE6FC1A-AE63-439D-89BC-3232E9CD0478"}}{\fldrslt footnote text}} more text
+# * In 405.comments we will find
+# 
+# <Comments><Comment ID="5CE6FC1A-AE63-439D-89BC-3232E9CD0478" Footnote="Yes" Color="0.992 0.929 0.525"><![CDATA[ rtf here ]]></Comment></Comments>
+# 
+# * There are comments, and there are footnotes
+# * Footnontes have an attribute Footnote=Yes
+# * Footnotes or comments never overlap.
+# 
+# So therefore, if we come down here, we know that
+# we have a .comments file. We hence are going to
+# re-insert, only the footnotes, into the rtf,
+# using TeXDown syntax "__ ... __". Then we will
+# hand it over to RTF::TEXT::Converter, and hope
+# for the best.
+# 
+# 
+sub commentsParser {
+  my $file = shift;
+
+  #
+  # Slurp in rtf
+  # 
+  open FILE, "<$file.rtf";
+  my $rtf = do { local $/; <FILE> };
+
+  #
+  # Slurp in comments
+  #
+  my $cmt = XML::LibXML->load_xml(location => "$file.comments");
+
+  #
+  # Iterate footnotes
+  #
+  my @footnotes = $cmt->findnodes('/Comments/Comment[@Footnote="Yes"]');
+
+  foreach my $footnote(@footnotes) {
+    my $footnoteId = $footnote->getAttribute("ID");
+    my $footnoteValue = $footnote->string_value;
+    my $footnotePlain;
+    my $parser = RTF::TEXT::Converter->new( output => \$footnotePlain );
+    $parser->parse_string($footnoteValue);
+
+    # Remove line breaks
+    $footnotePlain =~ s/\R/ /g;
+
+    #{\field{\*\fldinst{HYPERLINK "scrivcmt://5CE6FC1A-AE63-439D-89BC-3232E9CD0478"}}{\fldrslt footnote text}}
+    
+    $rtf =~ s!\{\\field.*?scrivcmt://$footnoteId"\}\}\{\\fldrslt .*?\}\}!__${footnotePlain}__!g;
+  }
+
+  #
+  # Parse the result
+  # 
+  my $result;
+  my $parser = RTF::TEXT::Converter->new( output => \$result );
+  $parser->parse_string($rtf);
+
+
+  return $result;
+}
 
 
 __END__
@@ -1722,6 +1796,16 @@ typographical versions:
 Footnotes are written between double underscores like so:
 
     __This is a footnote__  => \footnote{This is a footnote}
+
+If you don't like having your footnotes directly in your text,
+in Scrivener, you can also add footnotes to any place of the
+text, using Scrivener's footnote option. B<TeXDown> will
+detect these (not the comments, only the footnotes), and
+automatically convert them into Markdown, and then onwards
+to LaTeX. If you have newlines in your Scrivener footnotes,
+these are going to be removed. Since the footnotes are
+first converted to Markdown, they themselves can also contain
+Markdown.
 
 
 =head2 CITATIONS

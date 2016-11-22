@@ -564,6 +564,16 @@ Footnotes are written between double underscores like so:
 
     __This is a footnote__  => \footnote{This is a footnote}
 
+If you don't like having your footnotes directly in your text,
+in Scrivener, you can also add footnotes to any place of the
+text, using Scrivener's footnote option. **TeXDown** will
+detect these (not the comments, only the footnotes), and
+automatically convert them into Markdown, and then onwards
+to LaTeX. If you have newlines in your Scrivener footnotes,
+these are going to be removed. Since the footnotes are
+first converted to Markdown, they themselves can also contain
+Markdown.
+
 ## CITATIONS
 
 Citations are the strongest part of using Markdown over LaTeX.
