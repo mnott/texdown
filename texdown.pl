@@ -973,26 +973,24 @@ sub parseScrivener {
       #
       my $leaf = 0;
       my $path = "/ScrivenerProject/Binder";
+
+      my $document = $doc;
+
       foreach my $location (split("/", $project)) {
         if ($location ne "") {
           my $subpath = '/BinderItem[Title/text() = "'."$location".'"]';
-          my $parentNode = $doc->findnodes($path.$subpath);
-
-          #
-          # If the parentNode does not exist, e.g. because of a typo,
-          # we don't follow it up.
-          # 
-          if (!$parentNode) {
-            $path .= "$subpath/Children";
-            last;
-          }
+          my $document = $document->findnodes($path.$subpath)->get_node(1);
 
           #
           # Cound the children to detect leaves
           # 
-          my $childcount = $doc->findvalue("count($path$subpath/Children)");
+          if (!$document) {
+            $path .= "/Children$subpath";
+            last;
+          }
+          my $childcount = $document->findvalue("count($path$subpath/Children)");
 
-          my $parentType = @$parentNode[0]->getAttribute("Type");
+          my $parentType = $document->getAttribute("Type");
 
           if ($childcount == 0 || $parentType eq "Text") {
             $path .= '/BinderItem[Title/text() = "'."$location".'"]';
@@ -1210,7 +1208,7 @@ sub commentsParser {
 
     #{\field{\*\fldinst{HYPERLINK "scrivcmt://5CE6FC1A-AE63-439D-89BC-3232E9CD0478"}}{\fldrslt footnote text}}
     
-    $rtf =~ s!\{\\field.*?scrivcmt://$footnoteId"\}\}\{\\fldrslt (.*?)\}\}!\1__${footnotePlain}__!g;
+    $rtf =~ s!\{\\field.*?scrivcmt://$footnoteId"\}\}\{\\fldrslt (.*?)\}\}!$1__${footnotePlain}__!g;
   }
 
   #
