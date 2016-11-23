@@ -1137,6 +1137,7 @@ sub parsePlain {
 # Convert a file from rtf to a txt string.
 # 
 # $file     : The file to convert, w/o extension.
+# returns   : The rtf content as plain text.
 # 
 sub rtf2txt {
 	my $file = shift;
@@ -1153,7 +1154,7 @@ sub rtf2txt {
 
 
 #
-# rtf2txt
+# commentsParser
 # 
 # Special parsing for scrivener files that also
 # have comments. If this is so, we will find:
@@ -1176,6 +1177,9 @@ sub rtf2txt {
 # hand it over to RTF::TEXT::Converter, and hope
 # for the best.
 # 
+# $file     : The file to convert, w/o extension.
+# returns   : The rtf content as plain text, with
+#             footnotes merged back in (if any).
 # 
 sub commentsParser {
   my $file = shift;
