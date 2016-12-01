@@ -1,0 +1,38 @@
+# Mac Crap
+.DS_Store
+
+# Dev Crap we don't want to share
+scratch
+
+# LaTeX Output (for later)
+*.swp
+document.log
+document.pdf
+tmp/*
+document.synctex.gz
+00_titlepage.aux
+document.acn
+document.aux
+document.bbl
+document.bcf
+document.blg
+document.fdb_latexmk
+document.fls
+document.glo
+document.ist
+document.mw
+document.out
+document.run.xml
+document.syg
+document.sublime-workspace
+Output
+
+# Our sample scriv (for later)
+Dissertation.scriv/Files/binder.autosave
+Dissertation.scriv/Files/binder.backup
+Dissertation.scriv/Files/search.indexes
+Dissertation.scriv/Files/user.lock
+Dissertation.scriv/Files/Docs/docs.checksum
+Dissertation.scriv/QuickLook/
+Dissertation.scriv/Snapshots/
+Dissertation.scriv/Settings/ui.plist
