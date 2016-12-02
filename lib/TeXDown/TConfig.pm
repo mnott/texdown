@@ -34,7 +34,7 @@ example, you may want to add some more data:
     $cfg->append("something", "some more data");
 
     # Later...
-    my @array = @ { $cfg->get("something") };
+    my @array = @$cfg->get("something");
 
 See L<"set"> for rules on setting content, and see L<"append"> for
 more options when appending.
@@ -128,7 +128,7 @@ has cfg_of => (
 
 =begin testing Construct
 
-    ok( defined($cfg) && ref $cfg eq $MODULE, 'Passed: new()' );
+    ok( defined($cfg) && ref $cfg eq $MODULE, 'Passed: Construct' );
 
 =end testing
 
@@ -157,47 +157,56 @@ Here are the rules:
 
 =item I<Set>
 
-    # Initialize...
-    my $cfg = TeXDown::TConfig->new();
-
-    # Set something
-    $cfg->set("a", "b");       # "a" is now a scalar "b"
+    $cfg->clear();             # Assume we did TeXDown::TConfig->new();
+    $cfg->set("a", "b");
+    my $res = $cfg->get("a");  # "b"
 
 =begin testing SetNew
 
+    $cfg->clear();             # Assume we did TeXDown::TConfig->new();
+
     $cfg->set("a", "b");
-    my $res = $cfg->get("a");
-    ok( $res eq "b", 'Passed: set() - new' );
+    my $res = $cfg->get("a");  # "b"
+
+    ok( $res eq "b", 'Passed: set() - Set - New' );
 
 =end testing
 
 
 =item I<Replace>
 
-    # Later...
-    $cfg->set("a", "c");       # "a" is now a scalar "c"
+    $cfg->clear();
+    $cfg->set("a", "b");
+    $cfg->set("a", "c");
+    my $res = $cfg->get("a");  # "c"
 
 =begin testing SetReplace
 
+    $cfg->clear();
     $cfg->set("a", "b");
     $cfg->set("a", "c");
-    my $res = $cfg->get("a");
-    ok( $res eq "c", 'Passed: set() - replace' );
+    my $res = $cfg->get("a");  # "c"
+
+    ok( $res eq "c", 'Passed: set() - Set - Replace' );
 
 =end testing
 
 
 =item I<Remove>
 
-    # Later...
-    $cfg->set("a", undef);     # "a" is removed
+    $cfg->clear();
+    $cfg->set("a", "b");
+    $cfg->set("a", undef);
+    my $res = $cfg->get("a");  # undef (a was removed)
 
 =begin testing SetRemove
 
+    $cfg->clear();
     $cfg->set("a", "b");
     $cfg->set("a", undef);
-    my $res = $cfg->get("a");
-    ok( !defined $res, 'Passed: set() - remove' );
+    my $res = $cfg->get("a");  # undef (a was removed)
+
+    ok( !defined $res, 'Passed: set() - Set - Remove' );
 
 =end testing
 
@@ -205,82 +214,119 @@ Here are the rules:
 
 When setting a non scalar, just remember to pass it as
 a reference, otherwise you would be passing only the
-first element. You'll get back a reference:
+first element. You'll get back a reference.
 
-    # Set and get an array:
+Example:
 
-    my @array_in = ("b", "c");
+    # Set and get an array (reference):
 
-    $cfg->set("a", \@array_in);
+    $cfg->clear();
 
-    # Later...
+    my $a = [ "b", "c" ];
+    my @b = ( "b", "c" );
 
-    my @array_out = @{ $cfg->get("a") };
+    $cfg->set("a",  $a);
+    $cfg->set("b", \@b);
 
-Notice that the above construction of C<@array_in> created
-an array. So let's recap three ways of doing the same thing:
-
-
-    my @aa; do {@aa = (1, 2 ,3); \aa};  # <= @ax is array
-    my @ab = (1, 2, 3);                 # <= @ax is an array - same thing
-    my @ac = [1, 2, 3];                 # <= Not clean, rather do:
-    my $ad = [1, 2, 3];                 # <= @az is a scalar that
-                                                 is an array reference
-
-In the C<@ac> case, we created a reference to an array, which
-is what the use of square brackets does, but then stored it in
-a variable C<@ac> rather than holding it as a scalar, as we do
-it in C<$ad>. This confuses crap out of me, so I'm just saying...
-Now, if we have a scalar, that's a reference to an array, we can
-of course just set it:
-
-    $cfg->set("ad", $ad);
-
-And, because we did C<@ac> as we did, we could equally put that one
-as
-
-    $cfg->set("ac", @ac);  # <= Don't! You confuse even yourself!
-
-But be aware that at some point in the future, this module may have
-a way to detect that (it won't), and will really annoy you if you do.
-For the actual arrays, rather do:
-
-    $cfg->set("ab", \@ab); # <= Ahhh! This is nice.
-    $cfg->set("aa", \@aa);
-
+    my $ar = $cfg->get("a");
+    my $br = $cfg->get("b");
 
 =begin testing SetArray
 
-    my @array_in = ("b", "c");
-    $cfg->set("a", \@array_in);
-    my @array_out = @{ $cfg->get("a") };
-    ok( @array_out == 2 && ref \@array_out eq 'ARRAY', 'Passed: set() - array' );
+    $cfg->clear();
+
+    my $a = [ "b", "c" ];
+    my @b = ( "b", "c" );
+
+    $cfg->set("a",  $a);
+    $cfg->set("b", \@b);
+
+    my $ar = $cfg->get("a");
+    my $br = $cfg->get("b");
+
+    ok ( ref $ar eq 'ARRAY'
+      && ref $br eq 'ARRAY',
+         'Passed: set() - Set - Array'
+    );
 
 =end testing
 
-    # Set and get a hash:
+    # Set and get a hash (reference):
 
-    my %hash_in = ("b" => "c");
+    $cfg->clear();
 
-    $cfg->set("a", \%hash_in);
+    my $a = { "b" => "c" };
+    my %b = ( "b" => "c" );
 
-    # Later...
+    $cfg->set("a",  $a);
+    $cfg->set("b", \%b);
 
-    my %hash_out = %{ $cfg->get("a") };
+    my $ar = $cfg->get("a");
+    my $br = $cfg->get("b");
+
+=begin testing SetHash
+
+    $cfg->clear();
+
+    my $a = { "b" => "c" };
+    my %b = ( "d" => "e" );
+
+    $cfg->set("a",  $a);
+    $cfg->set("b", \%b);
+
+    my $ar = $cfg->get("a");
+    my $br = $cfg->get("b");
+
+    ok ( ref $ar eq 'HASH'
+      && ref $br eq 'HASH',
+         'Passed: set() - Set - Hash'
+    );
+
+=end testing
 
 In the following discussion, whenever I say C<scalar>, you
-can also use the same for any reference. Depending on your
-preference, you can of course also derefence later:
+an also use the same for any reference. Depending on your
+application, you can of course derefence later.
 
-    $cfg->set("a", ["b", "c"]);
-    my $arr_ref = $cfg->get("a");   # reference to ["a", "b"]
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("a", [ "b",   "c" ] );
+    $cfg->set("b", { "b" => "c" } );
+
+    my $ar = $cfg->get("a");   # reference to [ "b",   "c" ]
+    my $hr = $cfg->get("b");   # reference to { "b" => "c" }
 
     # Later...
 
-    my @arr = @$arr_ref;
+    my @a  = @$ar;
+    my %h  = %$hr;
+
+
+=begin testing SetReference
+
+    $cfg->clear();
+
+    $cfg->set("a", [ "b",   "c" ] );
+    $cfg->set("b", { "b" => "c" } );
+
+    my $ar = $cfg->get("a");   # reference to [ "b",   "c" ]
+    my $hr = $cfg->get("b");   # reference to { "b" => "c" }
+
+    # Later...
+
+    my @a  = @$ar;
+    my %h  = %$hr;
+
+    ok ( ref \@a eq 'ARRAY'
+      && ref \%h eq 'HASH',
+         'Passed: set() - Set - Reference'
+    );
+
+=end testing
 
 =cut
-
 
 sub set {
     my ( $self, $var, $val, $arg_ref ) = @_;
@@ -322,11 +368,12 @@ created. In that sense, append works identically to L<"set">,
 but you should still probably rather use set if you do not want
 to append. Otherwise you would risk running into the situation
 about which the author of L<Hash::MultiValue> says, that it
-*sucks* having to, as a client, always work defensively like so:
+*sucks* having to, as a client, always work defensively like
+shown in the
 
+Example:
 
-    # Initialize...
-    my $cfg = TeXDown::TConfig->new();
+    $cfg->clear();
 
     # Set something by always using append...
     $cfg->append("a", "b");       # "a" is now a scalar "b"
@@ -334,12 +381,37 @@ about which the author of L<Hash::MultiValue> says, that it
 
     # Later...
 
-    my $content = $cfg->get("a")  # Is it now a scalar or an array?
+    my $content = $cfg->get("a"); # Is it now a scalar or an array?
 
     # Need to test defensively:
-    my @maybe_multi = ref $content eq 'ARRAY' ? @{$content} : ($content);
-    my $must_scalar = ref $content eq 'ARRAY' ? $content->[0] : $content;
+    my $must_scalar = ref $content eq 'ARRAY' ?   $content->[0] :  $content;
+    my @maybe_multi = ref $content eq 'ARRAY' ? @{$content}     : ($content);
 
+=begin testing AppendNewItem
+
+    $cfg->clear();
+
+    # Set something by always using append...
+    $cfg->append("a", "b");       # "a" is now a scalar "b"
+
+    $cfg->append("a", "c");       # "a" is now an array ["b", "c"]
+
+    # Later...
+
+    my $content = $cfg->get("a"); # Is it now a scalar or an array?
+
+    # Need to test defensively:
+    my $must_scalar = ref $content eq 'ARRAY' ?   $content->[0] :  $content;
+    my @maybe_multi = ref $content eq 'ARRAY' ? @{$content}     : ($content);
+
+    ok ( $must_scalar eq "b",
+         'Passed: append() - Append - NewItem - Still Scalar');
+
+    ok ( ref \@maybe_multi eq 'ARRAY'
+      && @maybe_multi == 2,
+         'Passed: append() - Append - NewItem - Now Array');
+
+=end testing
 
 =item I<Append Non-Array to Non-Array>
 
@@ -347,23 +419,73 @@ Appending a non-array to a non-array (that is already there) will,
 as shown in the previous example, create a new array and add both
 the existing content as well as the new content, to that array.
 
+As stated above, this could create some confusion if we would do it
+on a simple set. That's why we do it only in append.
+
 Example:
 
-    # Assume we have $cfg = TeXDown::TConfig->new();
+    $cfg->clear();
 
     $cfg->set("a", "b");
-    $cfg->append("a", "c");         # ["a", "b"]
-    my @arr = @{ $cfg->get("a") };
+    $cfg->append("a", "c");
+    my $res = $cfg->get("a");  # ["a", "b"]
+    my @arr = @$res;           # or shorthand my @arr = @{ $cfg->get("a") }
+
+=begin testing AppendNonArrayToNonArray
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->append("a", "c");
+    my $res = $cfg->get("a");  # ["a", "b"]
+    my @arr = @$res;           # or shorthand my @arr = @{ $cfg->get("a") }
+
+    ok( @$res == 2
+     && ref $res eq 'ARRAY'
+     && @arr  == 2
+     && ref \@arr eq 'ARRAY',
+       'Passed: append() - Append - NonArrayToNonArray' );
+
+=end testing
 
 =item I<Append Array to Non-Array>
 
 Appending an array to a non array puts the existing, non-array,
 content into the array that is put in.
 
+You could argue that when appending an array to something that is
+not an array, you might want to see an outer containing array that
+has, as first entry, what was already there, and as second entry,
+the new incoming array. While this would allow for having a nested
+hierarchy of arrays, we know that we also want to be able to append
+one array's content ot another's (see below). Therefore, if we want
+to be able to do nested array, we can do this only on one level; at
+the next level we'd already have an existing array, to which we are
+then appending, hence we could nest only one level deep. Therefore,
+if you want to have nested array, construct them outside, and then
+just set them.
+
 Example:
 
+    $cfg->clear();
+
     $cfg->set("a", "b");
-    $cfg->append("a", ["c", "d"]);  # ["b", "c", "d"]
+    $cfg->append("a", ["c", "d"]);
+    my @res = @{ $cfg->get("a") };  # ["b", "c", "d"]
+
+=begin testing AppendArrayToNonArray
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->append("a", ["c", "d"]);
+    my @res = @{ $cfg->get("a") };  # ["b", "c", "d"]
+
+    ok( @res == 3
+     && ref \@res eq 'ARRAY',
+       'Passed: append() - Append - ArrayToNonArray' );
+
+=end testing
 
 =item I<Append Non-Array to Array>
 
@@ -372,26 +494,347 @@ existing array.
 
 Example:
 
+    $cfg->clear();
+
     $cfg->set("a", ["b", "c"]);
-    $cfg->append("a", "d");         # ["b", "c", "d"]
+    $cfg->append("a", "d");
+    my @res = @{ $cfg->get("a") };  # ["b", "c", "d"]
+
+=begin testing AppendNonArrayToArray
+
+    $cfg->clear();
+
+    $cfg->set("a", ["b", "c"]);
+    $cfg->append("a", "d");
+    my @res = @{ $cfg->get("a") };  # ["b", "c", "d"]
+
+    ok( @res == 3
+     && ref \@res eq 'ARRAY',
+        'Passed: append() - Append - NonArrayToArray' );
+
+=end testing
 
 =item I<Append Array to Array>
 
 Appending an array to another array that is already there will
 append the items of the new array to those of the array that
-was already there:
+was already there.
+
+Example:
+
+    $cfg->clear();
 
     $cfg->set("a", ["b", "c"]);
-    $cfg->append("a", ["d", "e"])   # ["b", "c", "d", "e"]
+    $cfg->append("a", ["d", "e"]);
+    my @res = @{ $cfg->get("a") };  # ["b", "c", "d", "e"]
+
+=begin testing AppendArrayToArray
+
+    $cfg->clear();
+
+    $cfg->set("a", ["b", "c"]);
+    $cfg->append("a", ["d", "e"]);
+    my @res = @{ $cfg->get("a") };  # ["b", "c", "d", "e"]
+
+    ok( @res == 4
+     && ref \@res eq 'ARRAY',
+        'Passed: append() - Append - ArrayToArray' );
+
+=end testing
+
+=item I<Append Non-Hash to Hash>
+
+Appending a non-hash to a hash will create a new entry in that
+hash. For that to work, you have to pass in the optional parameter
+that gives a name for that new entry (otherwise you'd be putting a
+new element into something that is not yet an array, hence wrapping
+the previously existing hash into an array, containg the hash as well
+as the new item).
+
+Example:
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_in = ("b" => "c");
+
+    $cfg->set("a", \%hash_in);
+
+    # Later...
+
+    $cfg->append("a", "d");                 # => Probably not what you want:
+
+    my @array_out = @{ $cfg->get("a") };    # [ {'b' => 'c'}, 'd' ]
+
+    # So let's do it right...
+
+    $cfg->clear();
+    $cfg->set("a", \%hash_in);
+    $cfg->append("a", "d", "e");            # <= Give it a name - here: "e"
+
+    my %hash_out = %{ $cfg->get("a") };     # {'b' => 'c', 'e' => 'd'}
 
 
+=begin testing AppendNonHashToHash
 
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_in = ("b" => "c");
+
+    $cfg->set("a", \%hash_in);
+
+    # Later...
+
+    $cfg->append("a", "d");                 # => Probably not what you want:
+
+    my @array_out = @{ $cfg->get("a") };    # [ {'b' => 'c'}, 'd' ]
+
+    ok( ref \@array_out eq 'ARRAY'
+     && @array_out == 2,
+        'Passed: append() - Append - NonHashToHash - Unnamed' );
+
+    # So let's do it right...
+
+    $cfg->clear();
+    $cfg->set("a", \%hash_in);
+    $cfg->append("a", "d", "e");            # <= Give it a name - here: "e"
+
+    my %hash_out = %{ $cfg->get("a") };     # {'b' => 'c', 'e' => 'd'}
+
+    ok( ref \%hash_out eq 'HASH'
+     && keys %hash_out == 2,
+        'Passed: append() - Append - NonHashToHash - Named' );
+
+=end testing
+
+=item I<Append Hash to Hash>
+
+Appending a hash to an existing hash merges both. Should the new hash
+contain hash keys that already are present in the existing hash, the
+values of the new hash will survive.
+
+Example:
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_ina = ("b" => "c", "d" => "e");
+    my %hash_inb = ("d" => "f", "g" => "h");
+
+    $cfg->set("a", \%hash_ina);
+    $cfg->append("a", \%hash_inb);
+
+    my %hash_out = %{ $cfg->get("a") };   # {'b' => 'c', 'd' => 'f', 'g' => 'h'}
+
+=begin testing AppendHashToHash
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_ina = ("b" => "c", "d" => "e");
+    my %hash_inb = ("d" => "f", "g" => "h");
+
+    $cfg->set("a", \%hash_ina);
+    $cfg->append("a", \%hash_inb);
+
+    my %hash_out = %{ $cfg->get("a") };   # {'b' => 'c', 'd' => 'f', 'g' => 'h'}
+
+    ok( ref \%hash_out eq 'HASH'
+     && keys %hash_out == 3,
+        'Passed: append() - Append - HashToHash' );
+
+=end testing
+
+=item I<Advanced Example: Replace Array into Hash>
+
+Of course, if you extend the previous example where we replaced
+the existing value of the hash key 'd' by some other value, you
+can also replace that value by something structurally different.
+For example, you can replace an existing scalar for 'd' by some
+array.
+
+Example:
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_ina = ("b" => "c", "d" => "e");
+    my %hash_inb = ("d" => ["x", "y"], "g" => "h");
+
+    $cfg->set("a", \%hash_ina);
+    $cfg->append("a", \%hash_inb);
+
+    my %hash_out = %{ $cfg->get("a") };   # {'b' => 'c', 'd' => ["x", "y"], 'g' => 'h'}
+
+
+=begin testing AdvancedArrayIntoHash
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_ina = ("b" => "c", "d" => "e");
+    my %hash_inb = ("d" => ["x", "y"], "g" => "h");
+
+    $cfg->set("a", \%hash_ina);
+    $cfg->append("a", \%hash_inb);
+
+    my %hash_out = %{ $cfg->get("a") };   # {'b' => 'c', 'd' => ["x", "y"], 'g' => 'h'}
+
+    ok( ref \%hash_out eq 'HASH'
+     && keys %hash_out == 3
+     && ref ${\%hash_out{'d'}} eq 'ARRAY',
+     'Passed: append() - Advanced - ArrayIntoHash' );
+
+=end testing
+
+
+=item I<Advanced Example: Replacing undef into Hash (delete from)>
+
+Likewise, we can delete from the hash that we already have, by passing
+an undefined value into a known position. Passing undef again will be
+a no-op, since the hash key inside the hash is not there.
+
+Example:
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_ina = ("b" => "c", "d" => "e");
+    my %hash_inb = ("d" => ["x", "y"], "g" => "h");
+
+    $cfg->set("a", \%hash_ina);
+    $cfg->append("a", \%hash_inb);
+    $cfg->append("a", undef, "d");
+
+    my %hash_out = %{ $cfg->get("a") };   # {'b' => 'c', 'g' => 'h'}
+
+=begin testing AdvancedRemoveInsideHash
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %hash_ina = ("b" => "c", "d" => "e");
+    my %hash_inb = ("d" => ["x", "y"], "g" => "h");
+
+    $cfg->set("a", \%hash_ina);
+    $cfg->append("a", \%hash_inb);
+    $cfg->append("a", undef, "d");
+
+    my %hash_out = %{ $cfg->get("a") };   # {'b' => 'c', 'g' => 'h'}
+
+    ok( ref \%hash_out eq 'HASH'
+     && keys %hash_out == 2,
+        'Passed: append() - Advanced - RemoveInsideHash' );
+
+=end testing
+
+=item I<Advanced Example: Adding the same item under a different name>
+
+If you add the same item under a different name, remember that it is
+the same item still. So when you later modify that item, both copies
+in the hash will be affected.
+
+Example:
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my $hashref_ai = {"b" => "c", "d" => "e"};
+
+    $cfg->set("a", $hashref_ai);
+
+    my $hashref_bi = $cfg->get("a");   # <= Same as %hashref_ai
+    $cfg->set("b", $hashref_bi);       # <= Now twice in $cfg
+
+    $hashref_bi->{"d"} = "f";          # <= modifies both
+
+    my $hashref_ao = $cfg->get("a");   # <= get it back from under "a"
+    my $hashref_bo = $cfg->get("b");   # <= get it back from under "b"
+
+    my $item_ai = $hashref_ai->{"d"};  # f
+    my $item_ao = $hashref_ao->{"d"};  # f
+    my $item_bi = $hashref_bi->{"d"};  # f
+    my $item_bo = $hashref_bo->{"d"};  # f
+
+=begin testing AdvancedAddSameEntry
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my $hashref_ai = {"b" => "c", "d" => "e"};
+
+    $cfg->set("a", $hashref_ai);
+
+    my $hashref_bi = $cfg->get("a");   # <= Same as %hashref_ai
+    $cfg->set("b", $hashref_bi);       # <= Now twice in $cfg
+
+    $hashref_bi->{"d"} = "f";          # <= modifies both
+
+    my $hashref_ao = $cfg->get("a");   # <= get it back from under "a"
+    my $hashref_bo = $cfg->get("b");   # <= get it back from under "b"
+
+    my $item_ai = $hashref_ai->{"d"};  # f
+    my $item_ao = $hashref_ao->{"d"};  # f
+    my $item_bi = $hashref_bi->{"d"};  # f
+    my $item_bo = $hashref_bo->{"d"};  # f
+
+    ok ($item_ai eq "f" &&
+        $item_ao eq "f" &&
+        $item_bi eq "f" &&
+        $item_bo eq "f",
+        'Passed: append() - Advanced - AddSameEntry');
+
+=end testing
+
+=item I<Advanced Example: Get Hash as Array>
+
+If you have a hash with an even number of elements, you can just get
+it as an array with interleaved keys and values. Of course, you have
+no control over the order of these pairs.
+
+Example:
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %h = {"b" => "c", "d" => "e"};
+
+    $cfg->set("a", \%h);
+
+    my @a = %{ $cfg->get("a") };       # ["b", "c", "d", "e" ]
+
+=begin testing GetHashAsArray
+
+    $cfg->clear();
+
+    # Set a hash:
+
+    my %h = ("b" => "c", "d" => "e");
+
+    $cfg->set("a", \%h);
+
+    my @a = %{ $cfg->get("a") };       # [ "b", "c", "d", "e" ] or
+                                       # [ "d", "e", "b", "c" ]
+
+    ok( ( $a[0] eq "b" && $a[1] eq "c" && $a[2] eq "d" && $a[3] eq "e" )
+     || ( $a[2] eq "b" && $a[3] eq "c" && $a[0] eq "d" && $a[1] eq "e" ),
+        'Passed: append() - Advanced - GetHashAsArray');
+
+=end testing
 
 =back
-
-
-
-
 
 =cut
 
@@ -446,7 +889,7 @@ sub append {
 
     # 0 - there's nothing, so create an entry
     if ( !exists $cfg->{$var} ) {
-        set( $var, $val );
+        $self->set( $var, $val );
         return;
     }
 
@@ -456,15 +899,13 @@ sub append {
     if ( ref $ex ne 'ARRAY' && ref $ex ne 'HASH' ) {
         if ( ref $val ne 'ARRAY' ) {
             # 1a - append
-            say "1a";
-            set( $var, [ $ex, $val ] );
+            $self->set( $var, [ $ex, $val ] );
         }
         else {
             # 1b - append elements
-            say "1b";
             my @newvar = ($ex);
             push @newvar, @{$val};
-            set( $var, \@newvar );
+            $self->set( $var, \@newvar );
         }
         return;
     }
@@ -473,12 +914,10 @@ sub append {
     if ( ref $ex eq 'ARRAY' ) {
         if ( ref $val ne 'ARRAY' ) {
             # 2a - append
-            say "2a";
             push @{$ex}, $val;
         }
         else {
             # 2b - append elements
-            say "2b";
             push @{$ex}, @{$val};
         }
         return;
@@ -487,48 +926,95 @@ sub append {
     # 3 - there's a hash
     if ( ref $ex eq 'HASH' ) {
         if ( ref $val ne 'HASH' ) {
-            # 3a - append
-            say "3a";
-            if ( !defined $val ) {
-                delete $$ex{$as};
+            if ( defined $as ) {
+                # If we have a name, ok
+                # 3a - append
+                if ( !defined $val ) {
+                    delete $$ex{$as};
+                }
+                else {
+                    $$ex{$as} = $val;
+                }
             }
             else {
-                $$ex{$as} = $val;
+                # We don't have a name.
+                # So essentially, this is 1a
+                $self->set( $var, [ $ex, $val ] );
             }
         }
         else {
             # 3b - append elements
-            say "3b";
             @$ex{ keys %{$val} } = values %{$val};
         }
         return;
     }
 
     # 4 - else (should not happen)
-    say "4";
-    set( $var, $val );
-
+    $self->set( $var, $val );
 }
 
 
+=head2 get
 
+C<get> gets an item from the hash. Hopefully, it is a hashref.
+You can also say, with the optional parameter, as what you want
+to have it.
 
+Example:
 
+    $cfg->clear();
 
+    $cfg->set("a", "b");
 
+    my @aa = @{ $cfg->get("a", { 'as_array' => 1 }) }; # [ b ]
+    my $sa =    $cfg->get("a");                        #  "b"
 
+    $cfg->append("a", "c");
 
+    my @ab = @{ $cfg->get("a") }; # <= [ "b", "c" ] (anyway array)
+    my $sb =    $cfg->get("a");   # <= array ref
 
+=begin testing GetAsArray
 
+    $cfg->clear();
 
+    $cfg->set("a", "b");
 
+    my @aa = @{ $cfg->get("a", { 'as_array' => 1 }) }; # [ b ]
+    my $sa =    $cfg->get("a");                        #  "b"
+
+    $cfg->append("a", "c");
+
+    my @ab = @{ $cfg->get("a") }; # <= [ "b", "c" ] (anyway array)
+    my $sb =    $cfg->get("a");   # <= array ref
+
+    ok( ref \@aa eq 'ARRAY'
+     && ref \@aa eq 'ARRAY'
+     && ref  $sa eq ''
+     && ref  $sb eq 'ARRAY',
+     'Passed: get() - GetAsArray');
+
+=end testing
+
+=cut
 
 
 sub get {
     my ( $self, $var, $arg_ref ) = @_;
+
+    # Set defaults...
+    my $as_array = $arg_ref->{'as_array'};
+
     my $cfg = $self->{cfg_of};
 
-    return $cfg->{$var};
+    my $res = $cfg->{$var};
+
+    if(ref $res ne 'ARRAY' && $as_array) {
+        return [$res];
+    } else {
+        return $res;
+    }
+
 }
 
 
@@ -539,13 +1025,9 @@ sub clear {
     my ( $self, $var, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
-    my $content = $cfg->{$var};
-
-    if ( ref $content eq 'ARRAY' && @$content ) {
-        @$content = ();
+    foreach my $key ( keys %$cfg ) {
+        delete $cfg->{$key};
     }
-
-    delete $cfg->{$var};
 
     return;
 }
