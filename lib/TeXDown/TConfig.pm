@@ -64,6 +64,8 @@ use Moose;
 
 use namespace::autoclean;
 
+use experimental 'smartmatch';
+
 ###################################################
 #
 # Configure Testing here
@@ -334,12 +336,18 @@ sub set {
 
     # If we have an ini file, we load it immediately
     #
-    # TODO: We might think about using append here etc.
-    #       at some point.
-    if ( $var eq "c" ) {
-        $self->load($val);
-        return;
-    }
+    # TODO:  We might think about using append here etc.
+    #        at some point.
+    #
+    # FIXED: Taken out since it potentially creates too
+    #        much confusion when one given key behaves
+    #        differently from all the others. Use load()
+    #        instead.
+    #
+    #if ( $var eq "c" ) {
+    #    $self->load($val);
+    #    return;
+    #}
 
     if ( exists $cfg->{$var} && !defined $val ) {
         # Setting undef removes the value,
@@ -957,8 +965,8 @@ sub append {
 =head2 get
 
 C<get> gets an item from the hash. Hopefully, it is a hashref.
-You can also say, with the optional parameter, as what you want
-to have it.
+You can also say, with the optional parameter, if you want to
+have it wrapped in an array, should it not yet be an array.
 
 Example:
 
@@ -1002,55 +1010,537 @@ Example:
 sub get {
     my ( $self, $var, $arg_ref ) = @_;
 
-    # Set defaults...
     my $as_array = $arg_ref->{'as_array'};
 
     my $cfg = $self->{cfg_of};
 
     my $res = $cfg->{$var};
 
-    if(ref $res ne 'ARRAY' && $as_array) {
+    if ( ref $res ne 'ARRAY' && $as_array ) {
         return [$res];
-    } else {
+    }
+    else {
         return $res;
     }
 
 }
 
 
+=head2 clear
 
+C<clear> removes all items from the hash. With the optional
+parameter, you can pass in an array of hash keys which
+you want to not remove.
+
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("x", "a");
+    $cfg->set("y", "b");
+    $cfg->set("z", "c");
+
+    $cfg->clear({'keep' => ["x", "z"]});
+
+    my $x = $cfg->get("x");
+    my $y = $cfg->get("y");
+    my $z = $cfg->get("z");
+
+    ok(  defined $x
+     && !defined $y
+     &&  defined $z,
+     'Passed: clear()');
+
+=begin testing Clear
+
+    $cfg->clear();
+
+    $cfg->set("x", "a");
+    $cfg->set("y", "b");
+    $cfg->set("z", "c");
+
+    $cfg->clear({'keep' => ["x", "z"]});
+
+    my $x = $cfg->get("x");
+    my $y = $cfg->get("y");
+    my $z = $cfg->get("z");
+
+    ok(  defined $x
+     && !defined $y
+     &&  defined $z,
+     'Passed: clear()');
+
+=end testing
+
+=cut
 
 
 sub clear {
-    my ( $self, $var, $arg_ref ) = @_;
+    my ( $self, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
+    my $skeep = $arg_ref->{'keep'};
+    my @keep = ( defined $skeep ) ? @$skeep : ();
+
     foreach my $key ( keys %$cfg ) {
-        delete $cfg->{$key};
+        delete $cfg->{$key} unless /$key/ ~~ @keep;
     }
 
     return;
 }
 
-sub contains {
+
+=head2 key_set
+
+C<key_set> gets all the keys that are currently defined.
+
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("scalar", "SCALAR");
+    $cfg->set("array",  [ "a", "b" ]);
+    $cfg->set("hash",   { "a" => "b" });
+
+    my @keys = $cfg->key_set();
+
+    foreach my $key (@keys) {
+        my $value = $cfg->get($key);
+        say "$key => ", (ref $value eq "") ? $value : (ref $value);
+    }
+
+=begin testing KeySet
+
+    $cfg->clear();
+
+    $cfg->set("scalar", "SCALAR");
+    $cfg->set("array",  [ "a", "b" ]);
+    $cfg->set("hash",   { "a" => "b" });
+
+    my @keys = $cfg->key_set();
+
+    foreach my $key (@keys) {
+        my $value = $cfg->get($key);
+        my $test  = (ref $value eq "") ? $value : (ref $value);
+        ok ( uc $key eq $test,
+             'Passed: key_set() - Iterating ' . $test);
+    }
+
+=end testing
+
+=cut
+
+sub key_set {
+    my ( $self, $arg_ref ) = @_;
+    my $cfg = $self->{cfg_of};
+
+    return keys %$cfg;
+}
+
+
+=head2 contains_key
+
+C<key_set> returns true if the key is already present.
+
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    if ($cfg->contains_key("a")) {
+        say "Found a";
+    }
+
+=begin testing ContainsKey
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    ok ( $cfg->contains_key("a")
+     && !$cfg->contains_key("b"),
+         'Passed: contains_key()');
+
+=end testing
+
+=cut
+
+sub contains_key {
     my ( $self, $var, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
-    my $val    = $cfg->{$var};
-    my $result = exists $cfg->{$var};
     return exists $cfg->{$var};
 }
 
 
+=head2 remove
+
+C<key_set> removes a given key from the hash.
+
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    say "Found a" if $cfg->contains_key("a");
+
+    $cfg->remove("a");
+
+    say "a was removed" if !$cfg->contains_key("a");
+
+=begin testing Remove
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    $cfg->remove("a");
+
+    $cfg->remove("b"); # We don't want to fail this
+
+    ok ( !$cfg->contains_key("a"),
+         'Passed: remove()');
+
+=end testing
+
+=cut
+
+sub remove {
+    my ( $self, $var, $arg_ref ) = @_;
+    my $cfg = $self->{cfg_of};
+
+    delete $cfg->{$var};
+}
 
 
+=head2 size
 
-sub load {
-    my ( $self, $ini ) = @_;
+C<key_set> returns the number of entries in the hash.
 
-    if ( !defined $ini ) {
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->set("e", "f");
+    $cfg->set("a", "g"); # <= overwrite
+
+    say "A has ", $cfg->size(), " entries.";
+
+=begin testing Size
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->set("e", "f");
+    $cfg->set("a", "g"); # <= overwrite
+
+    ok ( $cfg->size() == 2,
+         'Passed: size()');
+
+=end testing
+
+=cut
+
+sub size {
+    my ( $self, $var, $arg_ref ) = @_;
+    my $cfg = $self->{cfg_of};
+
+    return my $size = keys %$cfg;
+}
+
+
+=head2 is_empty
+
+C<key_set> checks whether the hash is empty.
+
+Example:
+
+    $cfg->clear();
+
+    say "Hash is empty" if !$cfg->is_empty();
+
+=begin testing IsEmpty
+
+    $cfg->clear();
+
+    say "Hash is empty" if !$cfg->is_empty();
+
+    ok ( $cfg->is_empty()
+      && $cfg->size() == 0,
+         'Passed: is_empty()');
+
+=end testing
+
+=cut
+
+sub is_empty {
+    my ( $self, $var, $arg_ref ) = @_;
+    my $cfg = $self->{cfg_of};
+
+    return 0 == keys %$cfg;
+}
+
+
+=head2 add_all
+
+C<key_set> adds a complete hash to the hash, potentially
+overwriting what is already there for any key given.
+
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    $cfg->add_all( { "e" => "f", "g" => "h", "a" => "c" } );
+
+=begin testing AddAll
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    $cfg->add_all( { "e" => "f", "g" => "h", "a" => "c" } );
+
+    ok ( $cfg->get("a") eq "c"
+      && $cfg->size() == 3,
+         'Passed: add_all()');
+
+=end testing
+
+=cut
+
+sub add_all {
+    my ( $self, $var, $arg_ref ) = @_;
+    my $cfg = $self->{cfg_of};
+
+    if ( ref $var ne 'HASH' ) {
+        confess "Can only add_all a hash";
+    }
+
+    #
+    # @merge are keys that, if we find them in any
+    # of the keys in %cfg, we don't want to replace
+    # the key in %cfg, but replace it's value by the
+    # values of the same key we find in the new
+    # hash to add.
+    #
+    #
+    # Example: we have p=("a", "b", "c") and we merge
+    # p=("d", "e"). Normally, we would now have
+    # p=("d", "e"), but if we say to merge on ("b"),
+    # we would now have p=("a", "d", "e", "c").
+    #
+
+
+    my $smerge = $arg_ref->{'merge'};
+    my @merge = ( defined $smerge ) ? @$smerge : ();
+
+    # Simple variant: Overwrite
+    if ( @merge == 0 ) {
+        @$cfg{ keys %$var } = values %$var;
         return;
     }
+
+    # Complex variant: Merge
+MERGE:
+    foreach my $key ( keys %$var ) {
+        my $curvals = $cfg->{$key};
+
+        if ( 'ARRAY' ne ref $curvals ) {
+            # Only one value so far => simple overwrite
+            $self->set( $key, $var->{$key} );
+            next MERGE;
+        }
+        else {
+            # We have an array, so look for whether to
+            # overwrite any of its values. If no such
+            # value, we append the new values.
+
+            my @newvals = ();
+            my $merged  = 0;
+
+            foreach my $curval (@$curvals) {
+                if ( /$curvals/ ~~ @merge ) {
+                    push( @newvals, $var->{$key} );
+                    $merged = 1;
+                }
+                else {
+                    push( @newvals, $curval );
+                }
+            }
+
+            # If we did not merge them in, they are new,
+            # so let's append them
+            #
+            if ( !$merged ) {
+                push( @newvals, $var->{$key} );
+            }
+
+            # Set the @newvals, replacing what was there
+            $self->set( $key, \@newvals );
+        }
+    }
+}
+
+
+
+=head2 load
+
+C<load> loads the content of a file into the hash.
+The hash is not automatically cleared first, which
+means, you can merge files.
+
+Example:
+
+    $cfg->clear();
+
+    $cfg->load("t/texdown-test.ini", {'protect_global' => 0});
+
+=begin testing Load
+
+    $cfg->clear();
+
+    $cfg->load("t/texdown-test.ini", {'protect_global' => 0});
+
+    ok ( $cfg->get("test-key") eq "global"
+      && $cfg->size() == 3,
+         'Passed: load()');
+
+=end testing
+
+So here's how the function works: Since you typically will have
+loaded some variables through the command line, like so:
+
+    my $cfg = TeXDown::TConfig->new();
+
+    GetOptions(
+        'c|cfg:s'           => sub { $cfg->append(@_); },
+        # ...
+        'p|project:s{,}'    => sub { $cfg->append(@_); },
+    ) or pod2usage(2);
+
+    $cfg->load($cfg->get("c"), { protect_global => 0 });
+
+The last line in the above example then instructs to load the
+configuration file, which may typically have been passed in
+as the configuration variable C<-c>, e.g., like
+
+    -c t/textdown-test.ini
+
+In addition, the parameter C<-p> is used to specify the
+projects that are to be loaded. For example, you can have
+multiple projects on the command line, like so:
+
+    -p abc -p roilr -p xyz
+
+After loading the file that's specified through C<-c>, the
+C<load> function walks through all projects that were given,
+on the command line, through C<-p>. For each of those projects,
+if it does not find an equivalent entry as a block in the
+configuration file, it will leave the value untouched. For
+others, it will replace that value by the values found in
+the configuration file.
+
+For example, assume that you have this content in the
+configuration file:
+
+    [roilr]
+    p=123, 456
+
+and you have given the above command line:
+
+    -p abc -p roilr -p xyz
+
+The net result will be as if you had specified, on the command
+line:
+
+    -p abc -p 123 -p 456 -p xyz
+
+Since neither C<abc> nor C<xyz> were found in the configuration file,
+they were left untouched; conversely, since C<roilr> was found in
+the configuration file and had a line there starting with C<p=>, its
+contents - C<123> and C<456> - have replaced the value C<roilr>
+that was given on the command line.
+
+What's more, there is the option of specifying any other variable in those
+sections. If you have some other variable, e.g., C<klm=opq> in a section
+of the configuration file that you had referred to using C<-p>, that
+variable will then be loaded into the hash, so that you can get it
+using the C<get> function.
+
+Note that if you are using multiple references into the configuration
+file, the variables of the last reference will survive. In other words,
+if you do
+
+    -p abc -p roilr -p rd -p xyz
+
+and you have this configuration file:
+
+    [roilr]
+    p=123, 456
+    klm=opq
+
+    [rd]
+    p=789
+    klm=rst
+
+You will find these values in the hash:
+
+    p=abc, 123, 456, 789, xyz
+    klm=rst
+
+Finally, you can use the C<[GLOBAL]> section in the configuration
+file. If you set the (optional) C<protect_global> variable to 1,
+those values will not be overwritten by whatever is specified in
+any given section. If you want the C<[GLOBAL]> settings to survive,
+you need to pass in C<protect_global=>1>:
+
+    # GLOBAL variables can be overwritten:
+
+    $cfg->load($cfg->get("c"), { protect_global => 0 }); # Standard, , same as
+    $cfg->load($cfg->get("c"));
+
+    # GLOBAL survives:
+    $cfg->load($cfg->get("c"), { protect_global => 1 });
+
+In other words, if you have this command line:
+
+    -p abc -p roilr -p rd -p xyz
+
+and this configuration file:
+
+    [GLOBAL]
+    klm=uvw
+
+    [roilr]
+    p=123, 456
+    klm=opq
+
+    [rd]
+    p=789
+    klm=rst
+
+You will find these values in the hash if you had C<protect_global=0>,
+which is the default:
+
+    p=abc, 123, 456, 789, xyz
+    klm=rst
+
+If you had, yet, C<protect_global=1>, then that value would survive,
+and you'd have:
+
+    p=abc, 123, 456, 789, xyz
+    klm=uvw
+
+=cut
+
+sub load {
+    my ( $self, $ini, $arg_ref ) = @_;
+    my $cfg = $self->{cfg_of};
 
     if ( !-f $ini ) {
         pod2usage(
@@ -1065,14 +1555,88 @@ sub load {
     #
     my $config = new Config::Simple($ini);
 
-    $self->{cfg_of}->{ini} = $config->{"_DATA"};
+    #
+    # Load GLOBAL first unless specified not to do so,
+    # allowing later variables to overwrite GLOBAL ones.
+    #
+    my $protect_global
+        = ( defined $arg_ref->{'protect_global'} )
+        ? $arg_ref->{'protect_global'}
+        : 0;
 
-    #    try {
-    #        cluck qq{This really did not work};
-    #    }
-    #    catch {
-    #        say "Well, this didn't go a that well, did it:\n$_";
-    #    }
+    if ( !$protect_global ) {
+        $self->add_all( $config->param( -block => "GLOBAL" ) );
+    }
+
+    # for each p that we have, we are going to locate it
+    # in our config file. If it exists, we are going to
+    # load it's variables, eventually overwriting what was
+    # already there. And for the p of that project itself,
+    # we are going to replace the value in our ps by those
+    # of that declared in the config file.
+
+    # Get all p's specified on the command line
+    my @cmd_ps = @{ $self->get( "p", { 'as_array' => 1 } ) };
+
+    # Create a new holder where we'll collect them all
+    my @all_ps = ();
+
+    # Traverse all the projects we may have been given
+    # on the command line; their names may be shortcuts
+    # to blocks in the configuration file
+    foreach my $cmd_p (@cmd_ps) {
+
+        # Should we have none... (undefined - like, in testing)
+        next if !defined $cmd_p;
+
+        # Get the variables for the current cmd line project
+        my %cmd_p_vars = %{ $config->param( -block => "$cmd_p" ) };
+
+        if ( !keys %cmd_p_vars || !exists $cmd_p_vars{"p"} ) {
+            # We have no specification on the project in ini,
+            # so we maintain what's on the command line
+            push @all_ps, $cmd_p;
+            next;
+        }
+
+        # Now we know that we have a block [rd] in the
+        # configuratin file, and that this block contains
+        # a p= specification of projects. Since we did not
+        # append rd into the @all_ps array, we now append
+        # all the values of rd.p into @all_ps.
+        #
+        # Or, of what we find is even not a project (p)
+        # specification, we'll just read what's in that
+        # configuration and put it into the hash itself.
+        foreach my $cmd_p_var ( keys %cmd_p_vars ) {
+            if ( $cmd_p_var ne "p" ) {
+                $self->set( $cmd_p_var, $cmd_p_vars{$cmd_p_var} );
+            }
+            else {
+                my $cmd_p_vals = $cmd_p_vars{$cmd_p_var};
+                if ( ref $cmd_p_vals eq 'ARRAY' ) {
+                    push @all_ps, @{$cmd_p_vals};
+                }
+                else {
+                    push @all_ps, $cmd_p_vals;
+                }
+            }
+        }
+    }
+
+    # Set the array of (re-) collected project definitions
+    if ( scalar @all_ps ) {
+        $self->set( "p", \@all_ps );
+    }
+
+
+    #
+    # If told that global should prevail,
+    # load it only now
+    #
+    if ($protect_global) {
+        $self->add_all( $config->param( -block => "GLOBAL" ) );
+    }
 }
 
 

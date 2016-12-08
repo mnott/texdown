@@ -400,5 +400,131 @@ my $cfg = TeXDown::TConfig->new();
 
 
 
+# =begin testing Clear
+{
+    $cfg->clear();
+
+    $cfg->set("x", "a");
+    $cfg->set("y", "b");
+    $cfg->set("z", "c");
+
+    $cfg->clear({'keep' => ["x", "z"]});
+
+    my $x = $cfg->get("x");
+    my $y = $cfg->get("y");
+    my $z = $cfg->get("z");
+
+    ok(  defined $x
+     && !defined $y
+     &&  defined $z,
+     'Passed: clear()');
+}
+
+
+
+# =begin testing KeySet
+{
+    $cfg->clear();
+
+    $cfg->set("scalar", "SCALAR");
+    $cfg->set("array",  [ "a", "b" ]);
+    $cfg->set("hash",   { "a" => "b" });
+
+    my @keys = $cfg->key_set();
+
+    foreach my $key (@keys) {
+        my $value = $cfg->get($key);
+        my $test  = (ref $value eq "") ? $value : (ref $value);
+        ok ( uc $key eq $test,
+             'Passed: key_set() - Iterating ' . $test);
+    }
+}
+
+
+
+# =begin testing ContainsKey
+{
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    ok ( $cfg->contains_key("a")
+     && !$cfg->contains_key("b"),
+         'Passed: contains_key()');
+}
+
+
+
+# =begin testing Remove
+{
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    $cfg->remove("a");
+
+    $cfg->remove("b"); # We don't want to fail this
+
+    ok ( !$cfg->contains_key("a"),
+         'Passed: remove()');
+}
+
+
+
+# =begin testing Size
+{
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->set("e", "f");
+    $cfg->set("a", "g"); # <= overwrite
+
+    ok ( $cfg->size() == 2,
+         'Passed: size()');
+}
+
+
+
+# =begin testing IsEmpty
+{
+    $cfg->clear();
+
+    say "Hash is empty" if !$cfg->is_empty();
+
+    ok ( $cfg->is_empty()
+      && $cfg->size() == 0,
+         'Passed: is_empty()');
+}
+
+
+
+# =begin testing AddAll
+{
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+
+    $cfg->add_all( { "e" => "f", "g" => "h", "a" => "c" } );
+
+    ok ( $cfg->get("a") eq "c"
+      && $cfg->size() == 3,
+         'Passed: add_all()');
+}
+
+
+
+# =begin testing Load
+{
+    $cfg->clear();
+
+    $cfg->load("t/texdown-test.ini", {'protect_global' => 0});
+
+    ok ( $cfg->get("test-key") eq "global"
+      && $cfg->size() == 3,
+         'Passed: load()');
+}
+
+
+
 
 1;

@@ -61,7 +61,7 @@ use Cwd qw(abs_path);
 use lib dirname( abs_path $0) . '/lib';
 
 #use TeXDown::Config;
-use TeXDown::EpicConfig;
+use TeXDown::TConfig;
 
 ###################################################
 #
@@ -79,23 +79,25 @@ use TeXDown::EpicConfig;
 use Config::Simple;
 use Getopt::Long;
 
-#my $cfg = TeXDown::Config->new( { ini => 'Dissertation.ini' } );
-my $cfg = TeXDown::EpicConfig->new();
+my $cfg = TeXDown::TConfig->new();
 
 GetOptions(
-    'c|cfg:s'           => sub { $cfg->set(@_); },
-    'h|?|help'          => sub { $cfg->set(@_); },
-    'man'               => sub { $cfg->set(@_); },
-    'i|id:s{,}'         => sub { $cfg->set(@_); },
-    'l|list'            => sub { $cfg->set(@_); },
-    'p|project:s{,}'    => sub { $cfg->set(@_); },
-    's|search:s'        => sub { $cfg->set(@_); },
-    'doc|documentation' => sub { $cfg->set(@_); },
-    'parser:s'          => sub { $cfg->set(@_); },
+    'c|cfg:s'           => sub { $cfg->append(@_); },
+    'h|?|help'          => sub { $cfg->append(@_); },
+    'man'               => sub { $cfg->append(@_); },
+    'i|id:s{,}'         => sub { $cfg->append(@_); },
+    'l|list'            => sub { $cfg->append(@_); },
+    'p|project:s{,}'    => sub { $cfg->append(@_); },
+    's|search:s'        => sub { $cfg->append(@_); },
+    'doc|documentation' => sub { $cfg->append(@_); },
+    'parser:s'          => sub { $cfg->append(@_); },
 ) or pod2usage(2);
 #pod2usage(1) if $cfg->is("h");
 #pod2usage( -exitval => 0, -verbose => 2 ) if $cfg->is("m");
 
+$cfg->load($cfg->get("c"), { protect_global => 0 });
+
+say Dumper $cfg;
 
 
 
@@ -124,18 +126,18 @@ GetOptions(
 
 
 # Working with Hashes
-my %hash = ("r" => "s", "u" => "v");#, "m" => "n");
+#my %hash = ("r" => "s", "u" => "v");#, "m" => "n");
 #print "ahash: " . Dumper %hash;
 
 # Set: store reference \%hash
-$cfg->set("hash", \%hash);       # full %hash
+#$cfg->set("hash", \%hash);       # full %hash
 
 # Get: Either dereference immediately:
 #my %dhash = $$cfg->get("hash");
 #print "dhash: ". Dumper %dhash;
 
 #      Or later:
-my %shash = $cfg->get("hash");
+#my %shash = $cfg->get("hash");
 #print "shash: " . Dumper %shash;
 
 #print $shash{"r"};
@@ -150,7 +152,7 @@ my %shash = $cfg->get("hash");
 
 
 say "done.";
- 
+
 #my $hshash = $cfg->get("shash"); # ok: hash size
 #my @hahash = $cfg->get("ahash"); # ok: array with k1, v1, k2, v2...
 #my %hhhash = %{$cfg->get("hhash")}; # ok: hash
