@@ -1059,6 +1059,8 @@ sub get {
             return [];
         }
         elsif ( ref $res eq 'ARRAY' ) {
+            return $res if !$condense;
+
             my @arr_res = ();
             # Wants an array, has an array: Return the array,
             # but remove all empty bits from it.
@@ -1072,7 +1074,13 @@ sub get {
         else {
             # Wants an array, has only one, non-array, value:
             # return wrapped as array
-            return [$res];
+            return [$res] if !$condense;
+
+            if (defined $res && $res ne "") {
+                return [$res];
+            } else {
+                return [];
+            }
         }
     }
     else {
@@ -1080,6 +1088,8 @@ sub get {
         # if there is an array, we return it, but we
         # remove the empty parts from it.
         if ( ref $res eq 'ARRAY' ) {
+            return $res if !$condense;
+
             my @arr_res = ();
             foreach my $arr_entry (@$res) {
                 if ( defined $arr_entry && $arr_entry ne "" ) {
