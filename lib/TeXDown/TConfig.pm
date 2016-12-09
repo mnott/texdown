@@ -60,6 +60,8 @@ use Pod::Usage;
 use Config::Simple;
 use Try::Tiny;
 
+use TeXDown::TFileResolver;
+
 use Moose;
 
 use namespace::autoclean;
@@ -1004,6 +1006,38 @@ Example:
 
 =end testing
 
+Using the optional parameter C<condense>, you can specify, if you
+did ask for C<as_array>, that you want to remove all empty strings
+and undefined stuff from the array before returning.
+
+Example:
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->append("a", "");
+    $cfg->append("a", "d");
+
+    # Gets ["b", "d"]:
+    my @array = @{ $cfg->get("a", { 'as_array' => 1, 'condense' => 1}) };
+
+=begin testing GetAsArrayCondensed
+
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->append("a", "");
+    $cfg->append("a", "d");
+
+    # Gets ["b", "d"]:
+    my @array = @{ $cfg->get("a", { 'as_array' => 1, 'condense' => 1}) };
+
+    ok( ref \@array eq 'ARRAY'
+     && scalar @array == 2,
+     'Passed: get() - GetAsArrayCondensed');
+
+=end testing
+
 =cut
 
 
@@ -1011,17 +1045,62 @@ sub get {
     my ( $self, $var, $arg_ref ) = @_;
 
     my $as_array = $arg_ref->{'as_array'};
+    my $condense = $arg_ref->{'condense'};
 
     my $cfg = $self->{cfg_of};
 
     my $res = $cfg->{$var};
 
-    if ( ref $res ne 'ARRAY' && $as_array ) {
-        return [$res];
+
+    if ($as_array) {
+        if ( !defined $res ) {
+            # Wants an array, but has no data: Return an
+            # empty array.
+            return [];
+        }
+        elsif ( ref $res eq 'ARRAY' ) {
+            my @arr_res = ();
+            # Wants an array, has an array: Return the array,
+            # but remove all empty bits from it.
+            foreach my $arr_entry (@$res) {
+                if ( defined $arr_entry && $arr_entry ne "" ) {
+                    push @arr_res, $arr_entry;
+                }
+            }
+            return \@arr_res;
+        }
+        else {
+            # Wants an array, has only one, non-array, value:
+            # return wrapped as array
+            return [$res];
+        }
     }
     else {
-        return $res;
+        # Does not specify whether wants an array. So
+        # if there is an array, we return it, but we
+        # remove the empty parts from it.
+        if ( ref $res eq 'ARRAY' ) {
+            my @arr_res = ();
+            foreach my $arr_entry (@$res) {
+                if ( defined $arr_entry && $arr_entry ne "" ) {
+                    push @arr_res, $arr_entry;
+                }
+            }
+            return \@arr_res;
+        } else {
+            # We don't have an array, so just return whatever is
+            # there
+            return $res;
+        }
     }
+
+
+#   if ( ref $res ne 'ARRAY' && $as_array ) {
+#       return [$res];
+#   }
+#   else {
+#       return $res;
+#   }
 
 }
 
@@ -1541,6 +1620,20 @@ and you'd have:
 sub load {
     my ( $self, $ini, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
+
+    #
+    # If we were not given an ini file to read from,
+    # we attempt to load it by checking whether we
+    # have a "c" attribute.
+    if ( !defined $ini || $ini eq "" ) {
+        if ( $self->contains_key("c") ) {
+            my $config_file = $self->get("c");
+
+            say "/$config_file/";
+        }
+
+    }
+
 
     if ( !-f $ini ) {
         pod2usage(
