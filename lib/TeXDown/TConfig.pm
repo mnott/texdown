@@ -55,18 +55,23 @@ binmode STDOUT, ":utf8";
 use utf8;
 use Carp qw(carp cluck croak confess);
 use feature qw(say);
-use Data::Dumper qw (Dumper);
+
 use Pod::Usage;
 use Config::Simple;
 use Try::Tiny;
 
-use TeXDown::TFileResolver;
+use Data::Dump "pp";
 
 use Moose;
+with 'MooseX::Log::Log4perl';
 
-use namespace::autoclean;
+use namespace::autoclean -except => sub { $_ =~ m{^t_.*} };
+
+use TeXDown::TFileResolver;
+use TeXDown::TUtils qw/ t_as_string /;
 
 use experimental 'smartmatch';
+
 
 ###################################################
 #
@@ -332,24 +337,13 @@ Example:
 
 =cut
 
+
+
 sub set {
     my ( $self, $var, $val, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
-    # If we have an ini file, we load it immediately
-    #
-    # TODO:  We might think about using append here etc.
-    #        at some point.
-    #
-    # FIXED: Taken out since it potentially creates too
-    #        much confusion when one given key behaves
-    #        differently from all the others. Use load()
-    #        instead.
-    #
-    #if ( $var eq "c" ) {
-    #    $self->load($val);
-    #    return;
-    #}
+    $self->log->trace( "$var = " . $self->t_as_string($val) );
 
     if ( exists $cfg->{$var} && !defined $val ) {
         # Setting undef removes the value,
@@ -897,6 +891,19 @@ sub append {
     my ( $self, $var, $val, $as, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
+    if ( "d" eq $var ) {
+        if ( defined $val && "" ne $val) {
+            $self->log->level($val);
+        }
+        else {
+            $self->log->level("DEBUG");
+        }
+
+    }
+
+    $self->log->trace(
+        "$var = " . $self->t_as_string( $val, $as, $arg_ref ) );
+
     # 0 - there's nothing, so create an entry
     if ( !exists $cfg->{$var} ) {
         $self->set( $var, $val );
@@ -951,13 +958,13 @@ sub append {
                 # So essentially, this is 1a
                 $self->set( $var, [ $ex, $val ] );
             }
-        }
+        }    #  if ( ref $val ne 'HASH' )
         else {
             # 3b - append elements
             @$ex{ keys %{$val} } = values %{$val};
         }
         return;
-    }
+    }    # if ( ref $ex eq 'HASH' )
 
     # 4 - else (should not happen)
     $self->set( $var, $val );
@@ -1043,23 +1050,27 @@ Example:
 
 sub get {
     my ( $self, $var, $arg_ref ) = @_;
+    my $cfg = $self->{cfg_of};
+
+    my $log = "$var " . $self->t_as_string($arg_ref) . ": ";
 
     my $as_array = $arg_ref->{'as_array'};
     my $condense = $arg_ref->{'condense'};
 
-    my $cfg = $self->{cfg_of};
-
     my $res = $cfg->{$var};
-
 
     if ($as_array) {
         if ( !defined $res ) {
             # Wants an array, but has no data: Return an
             # empty array.
+            $self->log->trace( $log . $self->t_as_string( [] ) );
             return [];
         }
         elsif ( ref $res eq 'ARRAY' ) {
-            return $res if !$condense;
+            if ( !$condense ) {
+                $self->log->trace( $log . $self->t_as_string($res) );
+                return $res;
+            }
 
             my @arr_res = ();
             # Wants an array, has an array: Return the array,
@@ -1069,26 +1080,37 @@ sub get {
                     push @arr_res, $arr_entry;
                 }
             }
+
+            $self->log->trace( $log . $self->t_as_string(@arr_res) );
             return \@arr_res;
-        }
+        }    # elsif ( ref $res eq 'ARRAY' )
         else {
             # Wants an array, has only one, non-array, value:
             # return wrapped as array
-            return [$res] if !$condense;
-
-            if (defined $res && $res ne "") {
+            if ( !$condense ) {
+                $self->log->trace( $log . $self->t_as_string( [$res] ) );
                 return [$res];
-            } else {
+            }
+
+            if ( defined $res && $res ne "" ) {
+                $self->log->trace( $log . $self->t_as_string( [$res] ) );
+                return [$res];
+            }
+            else {
+                $self->log->trace( $log . $self->t_as_string( [] ) );
                 return [];
             }
         }
-    }
+    }    # if ($as_array)
     else {
         # Does not specify whether wants an array. So
         # if there is an array, we return it, but we
         # remove the empty parts from it.
         if ( ref $res eq 'ARRAY' ) {
-            return $res if !$condense;
+            if ( !$condense ) {
+                $self->log->trace( $log . $self->t_as_string($res) );
+                return $res;
+            }
 
             my @arr_res = ();
             foreach my $arr_entry (@$res) {
@@ -1096,21 +1118,28 @@ sub get {
                     push @arr_res, $arr_entry;
                 }
             }
+
+            $self->log->trace( $log . $self->t_as_string(@arr_res) );
             return \@arr_res;
-        } else {
+        }    # if ( ref $res eq 'ARRAY' )
+        else {
             # We don't have an array, so just return whatever is
             # there
+            $self->log->trace( $log . $self->t_as_string($res) );
             return $res;
         }
-    }
+    }    # else: ! $as_array
 
-
-#   if ( ref $res ne 'ARRAY' && $as_array ) {
-#       return [$res];
-#   }
-#   else {
-#       return $res;
-#   }
+    # Original version - keeping for reference at
+    # the moment, was too simple as it did not
+    # support condensing.
+    #
+    #   if ( ref $res ne 'ARRAY' && $as_array ) {
+    #       return [$res];
+    #   }
+    #   else {
+    #       return $res;
+    #   }
 
 }
 
@@ -1118,8 +1147,12 @@ sub get {
 =head2 clear
 
 C<clear> removes all items from the hash. With the optional
-parameter, you can pass in an array of hash keys which
-you want to not remove.
+parameter C<keep>, you can pass in an array of hash keys which
+you want to not remove. Using the optional parameter C<only>,
+you can pass in an array of keys that you want to remove only,
+rather than removing everything (C<keep> applies in both cases).
+If you call clear just without any parameters, everything will
+be cleared.
 
 Example:
 
@@ -1129,16 +1162,11 @@ Example:
     $cfg->set("y", "b");
     $cfg->set("z", "c");
 
-    $cfg->clear({'keep' => ["x", "z"]});
+    $cfg->clear({'keep' => ["x", "z"], 'only' => ["x", "y"]});
 
-    my $x = $cfg->get("x");
-    my $y = $cfg->get("y");
-    my $z = $cfg->get("z");
-
-    ok(  defined $x
-     && !defined $y
-     &&  defined $z,
-     'Passed: clear()');
+    my $x = $cfg->get("x"); # defined  : asked to remove by only, but protected by keep
+    my $y = $cfg->get("y"); # undefined: removed
+    my $z = $cfg->get("z"); # defined  : not in list of keys to remove
 
 =begin testing Clear
 
@@ -1148,7 +1176,7 @@ Example:
     $cfg->set("y", "b");
     $cfg->set("z", "c");
 
-    $cfg->clear({'keep' => ["x", "z"]});
+    $cfg->clear({'keep' => ["x", "z"], 'only' => ["x", "y"]});
 
     my $x = $cfg->get("x");
     my $y = $cfg->get("y");
@@ -1168,11 +1196,24 @@ sub clear {
     my ( $self, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
+    $self->log->trace( "Clearing " . $self->t_as_string($arg_ref) );
+
     my $skeep = $arg_ref->{'keep'};
     my @keep = ( defined $skeep ) ? @$skeep : ();
 
-    foreach my $key ( keys %$cfg ) {
-        delete $cfg->{$key} unless /$key/ ~~ @keep;
+    my $sonly = $arg_ref->{'only'};
+
+    if ( defined $sonly ) {
+        my @only = @$sonly;
+        foreach my $key (@only) {
+            delete $cfg->{$key} unless /$key/ ~~ @keep;
+        }
+
+    }
+    else {
+        foreach my $key ( keys %$cfg ) {
+            delete $cfg->{$key} unless /$key/ ~~ @keep;
+        }
     }
 
     return;
@@ -1223,6 +1264,8 @@ sub key_set {
     my ( $self, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
+    $self->log->trace( $self->t_as_string( keys %$cfg, $arg_ref ) );
+
     return keys %$cfg;
 }
 
@@ -1259,7 +1302,13 @@ sub contains_key {
     my ( $self, $var, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
-    return exists $cfg->{$var};
+    my $res = exists $cfg->{$var};
+
+    $self->log->trace( "$var : "
+            . ( $res ? "(yes) " : "(no) " )
+            . $self->t_as_string($arg_ref) );
+
+    return $res;
 }
 
 
@@ -1300,6 +1349,8 @@ sub remove {
     my ( $self, $var, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
+    $self->log->trace( $self->t_as_string( $var, $arg_ref ) );
+
     delete $cfg->{$var};
 }
 
@@ -1337,7 +1388,11 @@ sub size {
     my ( $self, $var, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
-    return my $size = keys %$cfg;
+    my $size = keys %$cfg;
+
+    $self->log->trace( $self->t_as_string( $size, $arg_ref ) );
+
+    return $size;
 }
 
 
@@ -1368,6 +1423,8 @@ Example:
 sub is_empty {
     my ( $self, $var, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
+
+    $self->log->trace( "+ " . ( 0 == keys %$cfg ) );
 
     return 0 == keys %$cfg;
 }
@@ -1405,6 +1462,8 @@ Example:
 sub add_all {
     my ( $self, $var, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
+
+    $self->log->trace( $self->t_as_string( $var, $arg_ref ) );
 
     if ( ref $var ne 'HASH' ) {
         confess "Can only add_all a hash";
@@ -1472,7 +1531,7 @@ MERGE:
             # Set the @newvals, replacing what was there
             $self->set( $key, \@newvals );
         }
-    }
+    }    # MERGE: foreach my $key ( keys %$var )
 }
 
 
@@ -1631,23 +1690,28 @@ sub load {
     my ( $self, $ini, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
+    $self->log->trace(
+        "> " . $self->t_as_string( $ini, $arg_ref ) . "-" x 40 );
+
+    my $config_file;
+
     #
     # If we were not given an ini file to read from,
     # we attempt to load it by checking whether we
     # have a "c" attribute.
     if ( !defined $ini || $ini eq "" ) {
         if ( $self->contains_key("c") ) {
-            my $config_file = $self->get("c");
-
-            say "/$config_file/";
+            $config_file = $self->get("c");
         }
 
     }
+    else {
+        $config_file = $ini;
+    }
 
-
-    if ( !-f $ini ) {
+    if ( !-f $config_file ) {
         pod2usage(
-            {   -message => "\nConfiguration file $ini not found\n",
+            {   -message => "\nConfiguration file $config_file not found\n",
                 -exitval => 2,
             }
         );
@@ -1656,7 +1720,9 @@ sub load {
     #
     # Load the configuration File
     #
-    my $config = new Config::Simple($ini);
+    $self->log->info("Loading $config_file");
+
+    my $config = new Config::Simple($config_file);
 
     #
     # Load GLOBAL first unless specified not to do so,
@@ -1699,6 +1765,10 @@ sub load {
             # We have no specification on the project in ini,
             # so we maintain what's on the command line
             push @all_ps, $cmd_p;
+
+            $self->log->trace(
+                "Project $cmd_p was not found in configuration file, leaving untouched"
+            );
             next;
         }
 
@@ -1717,6 +1787,9 @@ sub load {
             }
             else {
                 my $cmd_p_vals = $cmd_p_vars{$cmd_p_var};
+                $self->log->trace( "Project $cmd_p was specified as "
+                        . $self->t_as_string($cmd_p_vals) );
+
                 if ( ref $cmd_p_vals eq 'ARRAY' ) {
                     push @all_ps, @{$cmd_p_vals};
                 }
@@ -1725,7 +1798,7 @@ sub load {
                 }
             }
         }
-    }
+    }    # foreach my $cmd_p (@cmd_ps)
 
     # Set the array of (re-) collected project definitions
     if ( scalar @all_ps ) {
@@ -1740,6 +1813,8 @@ sub load {
     if ($protect_global) {
         $self->add_all( $config->param( -block => "GLOBAL" ) );
     }
+
+    $self->log->trace( "< " . "-" x 40 );
 }
 
 
@@ -1752,9 +1827,8 @@ sub describe {
 sub dump {
     my ($self) = @_;
     $Data::Dumper::Terse = 1;
-    print Dumper $self->describe();
+    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe() ) } );
 }
-
 
 
 
