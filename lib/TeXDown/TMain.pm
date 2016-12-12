@@ -185,7 +185,7 @@ main program routine.
 
 sub run {
     my $self = shift;
-    $self->log->trace( $self->t_as_string( @_ ) );
+    $self->log->trace( $self->t_as_string(@_) );
 
     my $cfg = $self->{cfg_of};
 
@@ -194,9 +194,10 @@ sub run {
     #
     my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
 
-
 ARG:
     foreach my $arg (@_) {
+        $self->log->warn( "net configuration: " . pp( $cfg->describe() ) );
+
         #
         # Narrow down the projects that we have got on the
         # command line. This will not yet replace any of
@@ -292,6 +293,12 @@ ARG:
                         #
                         $cfg->set( "c", $c_back );
 
+                        #
+                        # TODO: Does it make sense to on the one hand
+                        # save away the config file, on the other hand
+                        # clean it?
+                        #
+                        $self->_cleanup();
                         next ARG;
                     }
                 }
@@ -323,7 +330,8 @@ ARG:
                     $cfgvar = "without configuration file: ";
                     $netcfg = "net configuration: " . pp( $cfg->describe() );
                 }
-                $self->log->info("[2] Running $cfgvar \ndir : $dir \nfile: $file");
+                $self->log->info(
+                    "[2] Running $cfgvar \ndir : $dir \nfile: $file");
                 $self->log->debug($netcfg) if "" ne $netcfg;
 
 
@@ -363,10 +371,34 @@ ARG:
         else {
             $self->log->error("Neither $arg nor $arg.scriv found.");
         }
-    }    # foreach my $arg (@_)
 
+        $self->_cleanup();
+
+    }    # foreach my $arg (@_)
 }
 
+
+#
+# Clear the configuration file
+# should we really have more than
+# one file on the command line.
+#
+# The options to keep there have to be aligned
+# with the command line options as per texdown.pl.
+#
+# TODO: Find a better solution to this.
+#
+sub _cleanup {
+    my ($self) = @_;
+
+    my $cfg = $self->{cfg_of};
+
+    $cfg->clear(
+        {   'keep' => [ "i", "l", "s", "parser", "n", "v", "doc", "h", "man" ]
+        }
+    );
+    $self->log->debug( "=" x 30 );
+}
 
 sub describe {
     my ($self) = @_;
