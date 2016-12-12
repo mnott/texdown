@@ -7,7 +7,51 @@ $| = 1;
 
 
 # =begin testing SETUP
+###################################################
+#
+# Configure Testing here
+#
+# This is going to be put at the top of the test
+# script. Make sure it contains all dependencies
+# that are in the above use section, and that are
+# relevant for testing.
+#
+# To generate the tests, run, from the main
+# directory
+#
+#   inline2test t/inline2test.cfg
+#
+# Then test like
+#
+#   Concise mode:
+#
+#   prove -l
+#
+#   Verbose mode:
+#
+#   prove -lv
+#
+###################################################
+
+###################################################
+#
+# Test Setup
+#
+###################################################
+
+my $MODULE       = 'TeXDown::TConfig';
+
+my @DEPENDENCIES = qw / TeXDown::TConfig
+                        TeXDown::TUtils
+                        TeXDown::TParser
+                        TeXDown::TFileResolver
+                      /;
+
+my $INI          = 't/texdown-test.ini';
+
 # Mostly dynamic construction of module path
+###################################################
+
 use File::Basename qw(dirname);
 use Cwd qw(abs_path);
 use lib dirname( abs_path $0) . '/../lib';
@@ -16,14 +60,46 @@ binmode STDOUT, ":utf8";
 use utf8;
 use feature qw(say);
 use Data::Dumper qw (Dumper);
+use Module::Load;
 
-use TeXDown::TConfig;
+###################################################
+#
+# Set up logging
+#
 
-my $INI = 't/texdown-test.ini';
+use Log::Log4perl qw(get_logger :levels);
+Log::Log4perl->init( dirname( abs_path $0) . "/../log4p.ini" );
 
-my $MODULE = 'TeXDown::TConfig';
+
+# Load Dependencies and set up loglevels
+
+foreach my $dependency (@DEPENDENCIES) {
+    load $dependency;
+    if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
+        get_logger($dependency)->level( $ENV{LOGLEVEL} );
+    }
+}
+
+my $log = get_logger($MODULE);
+
+# For some reason, some test
+# runs have linefeed issues
+# for their first statement
+
+print STDERR "\n";
+
+#
+###################################################
+
+###################################################
+#
+# Initial shared code for all tests of this module
+#
+###################################################
 
 my $cfg = TeXDown::TConfig->new();
+
+$cfg->load($INI);
 
 
 
@@ -400,6 +476,24 @@ my $cfg = TeXDown::TConfig->new();
 
 
 
+# =begin testing GetAsArrayCondensed
+{
+    $cfg->clear();
+
+    $cfg->set("a", "b");
+    $cfg->append("a", "");
+    $cfg->append("a", "d");
+
+    # Gets ["b", "d"]:
+    my @array = @{ $cfg->get("a", { 'as_array' => 1, 'condense' => 1}) };
+
+    ok( ref \@array eq 'ARRAY'
+     && scalar @array == 2,
+     'Passed: get() - GetAsArrayCondensed');
+}
+
+
+
 # =begin testing Clear
 {
     $cfg->clear();
@@ -408,7 +502,7 @@ my $cfg = TeXDown::TConfig->new();
     $cfg->set("y", "b");
     $cfg->set("z", "c");
 
-    $cfg->clear({'keep' => ["x", "z"]});
+    $cfg->clear({'keep' => ["x", "z"], 'only' => ["x", "y"]});
 
     my $x = $cfg->get("x");
     my $y = $cfg->get("y");
@@ -519,8 +613,7 @@ my $cfg = TeXDown::TConfig->new();
 
     $cfg->load("t/texdown-test.ini", {'protect_global' => 0});
 
-    ok ( $cfg->get("test-key") eq "global"
-      && $cfg->size() == 3,
+    ok ( $cfg->get("test-key") eq "global",
          'Passed: load()');
 }
 

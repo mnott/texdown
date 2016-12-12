@@ -48,7 +48,7 @@ use Carp qw(carp cluck croak confess);
 use feature qw(say);
 use Data::Dumper qw (Dumper);
 use Pod::Usage;
-use Try::Tiny;
+use Module::Load;
 
 ###################################################
 #
@@ -58,7 +58,7 @@ use Try::Tiny;
 
 use File::Basename qw(dirname);
 use Cwd qw(abs_path);
-use lib dirname( abs_path $0) . '/lib';
+use lib dirname( Cwd::abs_path $0) . '/lib';
 
 ###################################################
 #
@@ -67,10 +67,7 @@ use lib dirname( abs_path $0) . '/lib';
 ###################################################
 
 use Log::Log4perl qw(get_logger :levels);
-
 Log::Log4perl->init( dirname( abs_path $0) . "/log4p.ini" );
-
-my $log = get_logger("TeXDown::TConfig");
 
 use Data::Dump "pp";
 
@@ -80,9 +77,25 @@ use Data::Dump "pp";
 #
 ###################################################
 
-use TeXDown::TConfig;
-use TeXDown::TFileResolver;
-use TeXDown::TUtils qw/ t_as_string /;
+my $MODULE = 'main::';
+
+my @DEPENDENCIES = qw / TeXDown::TConfig
+    TeXDown::TUtils
+    TeXDown::TParser
+    TeXDown::TFileResolver
+    /;
+
+# Load Dependencies and set up loglevels
+
+foreach my $dependency (@DEPENDENCIES) {
+    load $dependency;
+    if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
+        get_logger($dependency)->level( $ENV{LOGLEVEL} );
+    }
+}
+
+my $log = get_logger($MODULE);
+
 
 ###################################################
 #
@@ -109,7 +122,6 @@ my $cfg = TeXDown::TConfig->new();
 # Get the command line options
 #
 GetOptions(
-    'd|debug:s'         => sub { $cfg->append(@_); },
     'c|cfg:s'           => sub { $cfg->append(@_); },
     'i|id:s{,}'         => sub { $cfg->append(@_); },
     'l|list'            => sub { $cfg->append(@_); },
@@ -294,8 +306,7 @@ ARG:
                 if ( $cfg->contains_key("c") && $cfg->get("c") ne "" ) {
                     $cfg->load();
                     $cfgvar = "configuring " . $cfg->get("c");
-                    $netcfg
-                        = "net configuration: " . pp( $cfg->describe() );
+                    $netcfg = "net configuration: " . pp( $cfg->describe() );
                 }
                 else {
                     $cfgvar = "without configuration file: ";
@@ -316,6 +327,16 @@ ARG:
 
 
 $log->trace("Done.");
+
+
+my $parser = TeXDown::TParser->new( cfg => $cfg );
+
+$parser->load();    #$cfg->get("parser")
+
+print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
+    . "\n";
+print $parser->parse("## bla blub blubber") . "\n";
+
 
 exit 0;
 

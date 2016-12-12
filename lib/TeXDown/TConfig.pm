@@ -44,8 +44,6 @@ more options when appending.
 
 =cut
 
-
-
 use warnings;
 use strict;
 
@@ -58,7 +56,6 @@ use feature qw(say);
 
 use Pod::Usage;
 use Config::Simple;
-use Try::Tiny;
 
 use Data::Dump "pp";
 
@@ -72,6 +69,8 @@ use TeXDown::TUtils qw/ t_as_string /;
 
 use experimental 'smartmatch';
 
+
+=begin testing SETUP
 
 ###################################################
 #
@@ -99,9 +98,25 @@ use experimental 'smartmatch';
 #
 ###################################################
 
-=begin testing SETUP
+###################################################
+#
+# Test Setup
+#
+###################################################
+
+my $MODULE       = 'TeXDown::TConfig';
+
+my @DEPENDENCIES = qw / TeXDown::TConfig
+                        TeXDown::TUtils
+                        TeXDown::TParser
+                        TeXDown::TFileResolver
+                      /;
+
+my $INI          = 't/texdown-test.ini';
 
 # Mostly dynamic construction of module path
+###################################################
+
 use File::Basename qw(dirname);
 use Cwd qw(abs_path);
 use lib dirname( abs_path $0) . '/../lib';
@@ -110,19 +125,50 @@ binmode STDOUT, ":utf8";
 use utf8;
 use feature qw(say);
 use Data::Dumper qw (Dumper);
+use Module::Load;
 
-use TeXDown::TConfig;
+###################################################
+#
+# Set up logging
+#
 
-my $INI = 't/texdown-test.ini';
+use Log::Log4perl qw(get_logger :levels);
+Log::Log4perl->init( dirname( abs_path $0) . "/../log4p.ini" );
 
-my $MODULE = 'TeXDown::TConfig';
+
+# Load Dependencies and set up loglevels
+
+foreach my $dependency (@DEPENDENCIES) {
+    load $dependency;
+    if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
+        get_logger($dependency)->level( $ENV{LOGLEVEL} );
+    }
+}
+
+my $log = get_logger($MODULE);
+
+# For some reason, some test
+# runs have linefeed issues
+# for their first statement
+
+print STDERR "\n";
+
+#
+###################################################
+
+###################################################
+#
+# Initial shared code for all tests of this module
+#
+###################################################
 
 my $cfg = TeXDown::TConfig->new();
+
+$cfg->load($INI);
 
 =end testing
 
 =cut
-
 
 
 has cfg_of => (
@@ -150,7 +196,6 @@ sub BUILD {
     if ( exists $arg_ref->{ini} ) {
         $self->load( $arg_ref->{ini} );
     }
-
 }
 
 
@@ -891,16 +936,6 @@ sub append {
     my ( $self, $var, $val, $as, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
-    if ( "d" eq $var ) {
-        if ( defined $val && "" ne $val) {
-            $self->log->level($val);
-        }
-        else {
-            $self->log->level("DEBUG");
-        }
-
-    }
-
     $self->log->trace(
         "$var = " . $self->t_as_string( $val, $as, $arg_ref ) );
 
@@ -1554,8 +1589,7 @@ Example:
 
     $cfg->load("t/texdown-test.ini", {'protect_global' => 0});
 
-    ok ( $cfg->get("test-key") eq "global"
-      && $cfg->size() == 3,
+    ok ( $cfg->get("test-key") eq "global",
          'Passed: load()');
 
 =end testing
@@ -1690,8 +1724,9 @@ sub load {
     my ( $self, $ini, $arg_ref ) = @_;
     my $cfg = $self->{cfg_of};
 
-    $self->log->trace(
-        "> " . $self->t_as_string( $ini, $arg_ref ) . "-" x 40 );
+    $self->log->trace( "> " . "-" x 40 );
+    $self->log->debug(
+        "Loading with parameters: " . $self->t_as_string( $ini, $arg_ref ) );
 
     my $config_file;
 

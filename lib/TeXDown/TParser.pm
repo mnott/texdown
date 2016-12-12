@@ -112,7 +112,7 @@ use Module::Load;
 #
 
 use Log::Log4perl qw(get_logger :levels);
-Log::Log4perl->init( dirname( abs_path $0) . "/log4p.ini" );
+Log::Log4perl->init( dirname( abs_path $0) . "/../log4p.ini" );
 
 
 # Load Dependencies and set up loglevels

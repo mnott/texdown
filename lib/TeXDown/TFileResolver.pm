@@ -31,8 +31,6 @@ See L<"resolve_files"> for more description.
 
 =cut
 
-
-
 use warnings;
 use strict;
 
@@ -44,7 +42,6 @@ use Carp qw(carp cluck croak confess);
 use feature qw(say);
 use Pod::Usage;
 use File::Basename;
-use Try::Tiny;
 
 use Moose;
 with 'MooseX::Log::Log4perl';
@@ -54,6 +51,8 @@ use namespace::autoclean -except => sub { $_ =~ m{^t_.*} };
 use TeXDown::TConfig;
 use TeXDown::TUtils qw/ t_as_string /;
 
+
+=begin testing SETUP
 
 ###################################################
 #
@@ -81,9 +80,25 @@ use TeXDown::TUtils qw/ t_as_string /;
 #
 ###################################################
 
-=begin testing SETUP
+###################################################
+#
+# Test Setup
+#
+###################################################
+
+my $MODULE       = 'TeXDown::TFileResolver';
+
+my @DEPENDENCIES = qw / TeXDown::TConfig
+                        TeXDown::TUtils
+                        TeXDown::TParser
+                        TeXDown::TFileResolver
+                      /;
+
+my $INI          = 't/texdown-test.ini';
 
 # Mostly dynamic construction of module path
+###################################################
+
 use File::Basename qw(dirname);
 use Cwd qw(abs_path);
 use lib dirname( abs_path $0) . '/../lib';
@@ -92,15 +107,47 @@ binmode STDOUT, ":utf8";
 use utf8;
 use feature qw(say);
 use Data::Dumper qw (Dumper);
+use Module::Load;
 
-use TeXDown::TConfig;
-use TeXDown::TFileResolver;
+###################################################
+#
+# Set up logging
+#
 
-my $INI      = 't/texdown-test.ini';
+use Log::Log4perl qw(get_logger :levels);
+Log::Log4perl->init( dirname( abs_path $0) . "/../log4p.ini" );
 
-my $MODULE   = 'TeXDown::TFileResolver';
+
+# Load Dependencies and set up loglevels
+
+foreach my $dependency (@DEPENDENCIES) {
+    load $dependency;
+    if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
+        get_logger($dependency)->level( $ENV{LOGLEVEL} );
+    }
+}
+
+my $log = get_logger($MODULE);
+
+# For some reason, some test
+# runs have linefeed issues
+# for their first statement
+
+print STDERR "\n";
+
+#
+###################################################
+
+###################################################
+#
+# Initial shared code for all tests of this module
+#
+###################################################
 
 my $cfg      = TeXDown::TConfig->new();
+
+$cfg->load($INI);
+
 my $resolver = TeXDown::TFileResolver->new ( cfg => $cfg );
 
 =end testing
