@@ -293,12 +293,6 @@ ARG:
                         #
                         $cfg->set( "c", $c_back );
 
-                        #
-                        # TODO: Does it make sense to on the one hand
-                        # save away the config file, on the other hand
-                        # clean it?
-                        #
-                        $self->_cleanup();
                         next ARG;
                     }
                 }
@@ -322,13 +316,15 @@ ARG:
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "configuring " . $cfg->get("c");
-                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
+                    $netcfg
+                        = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 else {
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "without configuration file: ";
-                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
+                    $netcfg
+                        = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 $self->log->info(
                     "[2] Running $cfgvar \ndir : $dir \nfile: $file");
@@ -352,13 +348,15 @@ ARG:
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "configuring " . $cfg->get("c");
-                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
+                    $netcfg
+                        = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 else {
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "without configuration file: ";
-                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
+                    $netcfg
+                        = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 $self->log->info(
                     "[3] Running on plain text $cfgvar \ndir : $dir \nfile: $file"
@@ -371,35 +369,9 @@ ARG:
         else {
             $self->log->error("Neither $arg nor $arg.scriv found.");
         }
-
-        $self->_cleanup();
-
     }    # foreach my $arg (@_)
 }
 
-
-#
-# Clear the configuration file
-# should we really have more than
-# one file on the command line.
-#
-# The options to keep there have to be aligned
-# with the command line options as per texdown.pl.
-#
-# TODO: Find a better solution to this.
-#
-sub _cleanup {
-    my ($self) = @_;
-
-    my $cfg = $self->{cfg_of};
-
-    $cfg->clear(
-        {   'keep' => [ "i", "l", "s", "parser", "n", "v", "doc", "h", "man" ]
-        }
-    );
-
-    $self->log->debug( "==" . "=" x 40 );
-}
 
 sub describe {
     my ($self) = @_;
