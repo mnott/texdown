@@ -188,16 +188,13 @@ sub load {
     #
     # Resolve the Parser File
     #
-    # TODO: Work on locating the parser more cleverly, i.e.,
-    #       deal with relative locations similar to what the
-    #       TFileResolver is doing.
-    #
-    my $parserfile = dirname( abs_path $0) . '/' . $parser;
+    my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
+    my ($d, $parserfile) = $resolver->resolve_files($parser);
 
-    if ( !-f $parserfile ) {
+    if (!defined $parserfile || !-f $parserfile ) {
         pod2usage(
             {   -message =>
-                    "\nParser Configuration file $parserfile not found\n",
+                    "\nParser Configuration file $parser not found\n",
                 -exitval => 2,
             }
         );
@@ -210,7 +207,7 @@ sub load {
     #       this module, so that the user can overwrite this from the parser
     #       configuration file
     open my $info, $parserfile or die "Could not open $parserfile: $!";
-    $self->log->info("Reading in parser: $parserfile");
+    $self->log->info("Loading Parser: $parserfile");
 
     while ( my $line = <$info> ) {
         $line =~ s/^#.*$//g;            # Lines starting as comments
@@ -245,8 +242,6 @@ Returns     : The parsed content
 
 sub parse {
     my ( $self, $input, $arg_ref ) = @_;
-    $self->log->trace(
-        "====================> bla " . $self->t_as_string($arg_ref) );
 
     my $output;
 

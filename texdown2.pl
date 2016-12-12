@@ -180,13 +180,13 @@ $log->trace("Done.");
 
 # Sample Parsing:
 #
-# my $parser = TeXDown::TParser->new( cfg => $cfg );
-#
-# $parser->load();
-#
-# print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
-#    . "\n";
-# print $parser->parse("## bla blub blubber") . "\n";
+my $parser = TeXDown::TParser->new( cfg => $cfg );
+
+$parser->load();
+
+print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
+   . "\n";
+print $parser->parse("## bla blub blubber") . "\n";
 
 
 exit 0;
