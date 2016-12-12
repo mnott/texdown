@@ -65,8 +65,6 @@ use namespace::autoclean -except => sub { $_ =~ m{^t_.*} };
 use TeXDown::TFileResolver;
 use TeXDown::TUtils qw/ t_as_string /;
 
-use experimental 'smartmatch';
-
 
 =begin testing SETUP
 
@@ -1207,20 +1205,21 @@ sub clear {
     $self->log->trace( "Clearing " . $self->t_as_string($arg_ref) );
 
     my $skeep = $arg_ref->{'keep'};
-    my @keep = ( defined $skeep ) ? @$skeep : ();
+    my @akeep = ( defined $skeep ) ? @$skeep : ();
+    my %hkeep = map { $_ => 1 } @akeep;
 
     my $sonly = $arg_ref->{'only'};
 
     if ( defined $sonly ) {
         my @only = @$sonly;
         foreach my $key (@only) {
-            delete $cfg->{$key} unless /$key/ ~~ @keep;
+            $self->remove($key) unless exists $hkeep{$key};
         }
 
     }
     else {
         foreach my $key ( keys %$cfg ) {
-            delete $cfg->{$key} unless /$key/ ~~ @keep;
+            $self->remove($key) unless exists $hkeep{$key};
         }
     }
 
@@ -1493,7 +1492,8 @@ sub add_all {
 
 
     my $smerge = $arg_ref->{'merge'};
-    my @merge = ( defined $smerge ) ? @$smerge : ();
+    my @merge  = ( defined $smerge ) ? @$smerge : ();
+    my %hmerge = map { $_ => 1 } @merge;
 
     # Simple variant: Overwrite
     if ( @merge == 0 ) {
@@ -1520,7 +1520,7 @@ MERGE:
             my $merged  = 0;
 
             foreach my $curval (@$curvals) {
-                if ( /$curvals/ ~~ @merge ) {
+                if ( exists $hmerge{$curvals} ) {
                     push( @newvals, $var->{$key} );
                     $merged = 1;
                 }
@@ -1741,7 +1741,7 @@ sub load {
         ? $arg_ref->{'protect_global'}
         : 0;
 
-    if ( !$protect_global ) {
+    if ( !$protect_global && defined $config ) {
         $self->add_all( $config->param( -block => "GLOBAL" ) );
     }
 
@@ -1761,52 +1761,54 @@ sub load {
     # Traverse all the projects we may have been given
     # on the command line; their names may be shortcuts
     # to blocks in the configuration file
-    foreach my $cmd_p (@cmd_ps) {
+    if ( defined $config ) {
+        foreach my $cmd_p (@cmd_ps) {
 
-        # Should we have none... (undefined - like, in testing)
-        next if !defined $cmd_p;
+            # Should we have none... (undefined - like, in testing)
+            next if !defined $cmd_p;
 
-        # Get the variables for the current cmd line project
-        my %cmd_p_vars = %{ $config->param( -block => "$cmd_p" ) };
+            # Get the variables for the current cmd line project
+            my %cmd_p_vars = %{ $config->param( -block => "$cmd_p" ) };
 
-        if ( !keys %cmd_p_vars || !exists $cmd_p_vars{"p"} ) {
-            # We have no specification on the project in ini,
-            # so we maintain what's on the command line
-            push @all_ps, $cmd_p;
+            if ( !keys %cmd_p_vars || !exists $cmd_p_vars{"p"} ) {
+                # We have no specification on the project in ini,
+                # so we maintain what's on the command line
+                push @all_ps, $cmd_p;
 
-            $self->log->trace(
-                "Project $cmd_p was not found in configuration file, leaving untouched"
-            );
-            next;
-        }
-
-        # Now we know that we have a block [rd] in the
-        # configuratin file, and that this block contains
-        # a p= specification of projects. Since we did not
-        # append rd into the @all_ps array, we now append
-        # all the values of rd.p into @all_ps.
-        #
-        # Or, of what we find is even not a project (p)
-        # specification, we'll just read what's in that
-        # configuration and put it into the hash itself.
-        foreach my $cmd_p_var ( keys %cmd_p_vars ) {
-            if ( $cmd_p_var ne "p" ) {
-                $self->set( $cmd_p_var, $cmd_p_vars{$cmd_p_var} );
+                $self->log->trace(
+                    "Project $cmd_p was not found in configuration file, leaving untouched"
+                );
+                next;
             }
-            else {
-                my $cmd_p_vals = $cmd_p_vars{$cmd_p_var};
-                $self->log->trace( "Project $cmd_p was specified as "
-                        . $self->t_as_string($cmd_p_vals) );
 
-                if ( ref $cmd_p_vals eq 'ARRAY' ) {
-                    push @all_ps, @{$cmd_p_vals};
+            # Now we know that we have a block [rd] in the
+            # configuratin file, and that this block contains
+            # a p= specification of projects. Since we did not
+            # append rd into the @all_ps array, we now append
+            # all the values of rd.p into @all_ps.
+            #
+            # Or, of what we find is even not a project (p)
+            # specification, we'll just read what's in that
+            # configuration and put it into the hash itself.
+            foreach my $cmd_p_var ( keys %cmd_p_vars ) {
+                if ( $cmd_p_var ne "p" ) {
+                    $self->set( $cmd_p_var, $cmd_p_vars{$cmd_p_var} );
                 }
                 else {
-                    push @all_ps, $cmd_p_vals;
+                    my $cmd_p_vals = $cmd_p_vars{$cmd_p_var};
+                    $self->log->trace( "Project $cmd_p was specified as "
+                            . $self->t_as_string($cmd_p_vals) );
+
+                    if ( ref $cmd_p_vals eq 'ARRAY' ) {
+                        push @all_ps, @{$cmd_p_vals};
+                    }
+                    else {
+                        push @all_ps, $cmd_p_vals;
+                    }
                 }
-            }
-        }
-    }    # foreach my $cmd_p (@cmd_ps)
+            }    # foreach my $cmd_p_var ( keys %cmd_p_vars )
+        }    # foreach my $cmd_p (@cmd_ps)
+    }    # if ( defined $config )
 
     # Set the array of (re-) collected project definitions
     if ( scalar @all_ps ) {
@@ -1818,7 +1820,7 @@ sub load {
     # If told that global should prevail,
     # load it only now
     #
-    if ($protect_global) {
+    if ( $protect_global && defined $config ) {
         $self->add_all( $config->param( -block => "GLOBAL" ) );
     }
 
