@@ -9,11 +9,37 @@ $| = 1;
 # =begin testing SETUP
 ###################################################
 #
+# Configure Testing here
+#
+# This is going to be put at the top of the test
+# script. Make sure it contains all dependencies
+# that are in the above use section, and that are
+# relevant for testing.
+#
+# To generate the tests, run, from the main
+# directory
+#
+#   inline2test t/inline2test.ini
+#
+# Then test like
+#
+#   Concise mode:
+#
+#   prove -l
+#
+#   Verbose mode:
+#
+#   prove -lv
+#
+###################################################
+
+###################################################
+#
 # Test Setup
 #
 ###################################################
 
-my $MODULE       = 'TeXDown::TUtils';
+my $MODULE       = 'TeXDown::TMain';
 
 my @DEPENDENCIES = qw / TeXDown::TMain
                         TeXDown::TConfig
@@ -76,7 +102,12 @@ my $cfg      = TeXDown::TConfig->new();
 
 $cfg->load($INI);
 
-ok (1 == 1, 'Passed: Construct');
+
+
+# =begin testing Construct
+{
+    ok( 1 == 1, 'Passed: Construct' );
+}
 
 
 

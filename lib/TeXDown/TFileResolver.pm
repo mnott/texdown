@@ -4,7 +4,7 @@ package TeXDown::TFileResolver;
 
 =head1 NAME
 
-TeXDown::FileResolver - Be somewhat gentle when it comes to finding
+TeXDown::TFileResolver - Be somewhat gentle when it comes to finding
 out where the Scrivener directory is.
 
 =head1 DESCRIPTION
@@ -17,7 +17,7 @@ You can use it like so:
     # Initialize, or rather, reuse from elsewhere...; $cfg
     # would be an instance of TeXDown::TConfig
 
-    my $resolver = TeXDown::FileResolver->new( cfg => $cfg );
+    my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
 
     # If we did not specify a project, let's attemt to resolve it
 
@@ -40,6 +40,7 @@ binmode STDOUT, ":utf8";
 use utf8;
 use Carp qw(carp cluck croak confess);
 use feature qw(say);
+use Data::Dump "pp";
 use Pod::Usage;
 use File::Basename;
 
@@ -56,39 +57,14 @@ use TeXDown::TUtils qw/ t_as_string /;
 
 ###################################################
 #
-# Configure Testing here
-#
-# This is going to be put at the top of the test
-# script. Make sure it contains all dependencies
-# that are in the above use section, and that are
-# relevant for testing.
-#
-# To generate the tests, run, from the main
-# directory
-#
-#   inline2test t/inline2test.cfg
-#
-# Then test like
-#
-#   Concise mode:
-#
-#   prove -l
-#
-#   Verbose mode:
-#
-#   prove -lv
-#
-###################################################
-
-###################################################
-#
 # Test Setup
 #
 ###################################################
 
 my $MODULE       = 'TeXDown::TFileResolver';
 
-my @DEPENDENCIES = qw / TeXDown::TConfig
+my @DEPENDENCIES = qw / TeXDown::TMain
+                        TeXDown::TConfig
                         TeXDown::TUtils
                         TeXDown::TParser
                         TeXDown::TFileResolver
@@ -106,7 +82,7 @@ use lib dirname( abs_path $0) . '/../lib';
 binmode STDOUT, ":utf8";
 use utf8;
 use feature qw(say);
-use Data::Dumper qw (Dumper);
+use Data::Dump "pp";
 use Module::Load;
 
 ###################################################

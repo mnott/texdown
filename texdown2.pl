@@ -20,7 +20,7 @@ TeXDown - Markdown for LaTeX and Instrument Scrivener
 
 =head1 VERSION
 
-Version 0.0.1ch
+Version 0.0.1
 
 =head1 LICENCE AND COPYRIGHT
 Copyright (c) 2016 Matthias Nott (mnott (at) mnsoft.org).
@@ -46,7 +46,7 @@ binmode STDOUT, ":utf8";
 use utf8;
 use Carp qw(carp cluck croak confess);
 use feature qw(say);
-use Data::Dumper qw (Dumper);
+use Data::Dump "pp";
 use Pod::Usage;
 use Module::Load;
 
@@ -69,7 +69,6 @@ use lib dirname( Cwd::abs_path $0) . '/lib';
 use Log::Log4perl qw(get_logger :levels);
 Log::Log4perl->init( dirname( abs_path $0) . "/log4p.ini" );
 
-use Data::Dump "pp";
 
 ###################################################
 #
@@ -77,9 +76,9 @@ use Data::Dump "pp";
 #
 ###################################################
 
-my $MODULE = 'main::';
-
-my @DEPENDENCIES = qw / TeXDown::TConfig
+my @DEPENDENCIES = qw /
+    TeXDown::TMain
+    TeXDown::TConfig
     TeXDown::TUtils
     TeXDown::TParser
     TeXDown::TFileResolver
@@ -94,7 +93,12 @@ foreach my $dependency (@DEPENDENCIES) {
     }
 }
 
-my $log = get_logger($MODULE);
+
+my $log = get_logger("TeXDown");
+
+if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
+    $log->level( uc $ENV{LOGLEVEL} );
+}
 
 
 ###################################################
@@ -142,7 +146,7 @@ pod2usage( -exitval => 0, -verbose => 2 ) if $cfg->contains_key("m");
 # Instantiate the File Resolver
 #
 
-my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
+my $texdown = TeXDown::TMain->new( cfg => $cfg );
 
 
 #
@@ -150,7 +154,7 @@ my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
 #
 if ( -t STDIN ) {
     if ( @ARGV > 0 ) {
-        run(@ARGV);
+        $texdown->run(@ARGV);
     }
     else {
         pod2usage(2);
@@ -161,181 +165,27 @@ else {
 }
 
 
-#
-# run
-#
-sub run {
-
-ARG:
-    foreach my $arg (@ARGV) {
-        #
-        # Narrow down the projects that we have got on the
-        # command line. This will not yet replace any of
-        # them by whatever comes from a configuration file,
-        # as we did not yet load a configuration file.
-        #
-        my @projects
-            = @{ $cfg->get( "p", { 'as_array' => 1, 'condense' => 1 } ) };
-
-        #
-        # If we did not specify any project, let's
-        # attempt to resolve the project by the file
-        # name of the scriv directory.
-        #
-        # E.g., if we were given Dissertation as command
-        # line parameter, and hence there is a Dissertation.scriv
-        # directory, the project that we are trying to resolve in
-        # Dissertation.scriv/Dissertation.scrivx is going to be
-        # /Dissertation.
-        #
-        if ( @projects == 0 ) {
-            my ( $d, $f, $p ) = $resolver->resolve_files($arg);
-
-            push @projects, $p;
-
-            $cfg->set( "p", \@projects );
-        }
-
-
-        if ( -e "$arg" || -e "$arg.scriv" ) {
-            my ( $dir, $file, $project ) = $resolver->resolve_files($arg);
-
-            if ( defined($project) && $project ne "" ) {
-                #
-                # Scrivener
-                #
-
-                #
-                # Option 1:
-                #
-                # - Indirect project definition by configuration file...
-                # - ...but don't even say, which configuration file to use
-                # - yet at least, we say which project(s) to use
-                #
-                # If we did have projects, and cfg set, but empty,
-                # we still try to find a default configuration,
-                # rather than running on the projects ourselves
-                #
-                # This is invoked e.g. like so:
-                #
-                # ./texdown.pl Dissertation -l -c -p roilr
-                #
-                # We are hence working on the Dissertation.scriv,
-                # and we are saying we want to use a configuration
-                # file, without specifying its name. Hence the
-                # program will attempt to use Dissertation.cfg.
-                # We also said that we want to use a given project
-                # that's defined in the configuration file, in this
-                # case roilr.
-                #
-                if (   @projects > 0
-                    && $cfg->contains_key("c")
-                    && $cfg->get("c") eq "" )
-                {
-                    if ( -f "$dir/../$project.ini" ) {
-                        #
-                        # Save configuration file setting
-                        #
-                        my $c_back = $cfg->get("c");
-
-                        $cfg->set( "c", "$dir/../$project.ini" );
-
-                        my $cfgvar = "";
-                        my $netcfg = "";
-                        if ( $cfg->contains_key("c") && $cfg->get("c") ne "" )
-                        {
-                            $cfg->load();
-                            $cfgvar = "\nini : " . $cfg->get("c");
-                            $netcfg = "net configuration: "
-                                . pp( $cfg->describe() );
-                        }
-                        $log->info(
-                            "Running with configuration file: $cfgvar \ndir : $dir \nfile: $file"
-                        );
-                        $log->debug($netcfg) if "" ne $netcfg;
-
-                        #runFromCfg( $dir, $file );
-
-                        #
-                        # Restore configuration file setting
-                        #
-                        $cfg->set( "c", $c_back );
-
-                        next ARG;
-                    }
-                }
-
-                #
-                # Option 2:
-                #
-                # This is the standard case, without configuration file,
-                # invoked e.g. like so:
-                #
-                # ./texdown.pl Dissertation -l -p /Trash
-                #
-                # We are working on Dissertation.scriv, and we say we
-                # want to use a project that's actually like this available
-                # in that file (we can use absolute or relative names).
-                #
-                my $cfgvar = "";
-                my $netcfg = "";
-                if ( $cfg->contains_key("c") && $cfg->get("c") ne "" ) {
-                    $cfg->load();
-                    $cfgvar = "configuring " . $cfg->get("c");
-                    $netcfg = "net configuration: " . pp( $cfg->describe() );
-                }
-                else {
-                    $cfgvar = "without configuration file: ";
-                }
-                $log->info("Running $cfgvar \ndir : $dir \nfile: $file");
-                $log->debug($netcfg) if "" ne $netcfg;
-
-
-                #parseScrivener( $dir, $file );
-            }    # if ( defined($project) && $project ne "" )
-            else {
-                #
-                # Option 3:
-                #
-                # Plain Text
-                #
-                # ./texdown.pl document.tex
-                #
-                my $cfgvar = "";
-                my $netcfg = "";
-                if ( $cfg->contains_key("c") && $cfg->get("c") ne "" ) {
-                    $cfg->load();
-                    $cfgvar = "configuring " . $cfg->get("c");
-                    $netcfg = "net configuration: " . pp( $cfg->describe() );
-                }
-                else {
-                    $cfgvar = "without configuration file: ";
-                }
-                $log->info(
-                    "Running on plain text $cfgvar \ndir : $dir \nfile: $file"
-                );
-                $log->debug($netcfg) if "" ne $netcfg;
-
-                #parsePlain ($dir, $file);
-            }
-        }    # if ( -e "$arg" || -e "$arg.scriv" )
-        else {
-            $log->error("Neither $arg nor $arg.scriv found.");
-        }
-    }    # foreach my $arg (@ARGV)
-}    # sub run
-
 
 $log->trace("Done.");
 
 
-my $parser = TeXDown::TParser->new( cfg => $cfg );
+# Getting location of some file:
+#
+# my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
+#
+# my ( $dir, $file, $scriv ) = $resolver->resolve_files("../doof.tex");
+#
+# say "dir  : $dir\nfile : $file\nscriv: $scriv";
 
-$parser->load();    #$cfg->get("parser")
-
-print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
-    . "\n";
-print $parser->parse("## bla blub blubber") . "\n";
+# Sample Parsing:
+#
+# my $parser = TeXDown::TParser->new( cfg => $cfg );
+#
+# $parser->load();
+#
+# print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
+#    . "\n";
+# print $parser->parse("## bla blub blubber") . "\n";
 
 
 exit 0;
@@ -753,7 +603,6 @@ on your system are listed at the top of B<texdown.pl>:
   use Getopt::Long;
   use Pod::Usage;
   use File::Basename;
-  use Data::Dumper;
   use RTF::TEXT::Converter;
   use XML::LibXML;
   use Tie::IxHash;

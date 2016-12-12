@@ -53,11 +53,9 @@ binmode STDOUT, ":utf8";
 use utf8;
 use Carp qw(carp cluck croak confess);
 use feature qw(say);
-
+use Data::Dump "pp";
 use Pod::Usage;
 use Config::Simple;
-
-use Data::Dump "pp";
 
 use Moose;
 with 'MooseX::Log::Log4perl';
@@ -74,39 +72,14 @@ use experimental 'smartmatch';
 
 ###################################################
 #
-# Configure Testing here
-#
-# This is going to be put at the top of the test
-# script. Make sure it contains all dependencies
-# that are in the above use section, and that are
-# relevant for testing.
-#
-# To generate the tests, run, from the main
-# directory
-#
-#   inline2test t/inline2test.cfg
-#
-# Then test like
-#
-#   Concise mode:
-#
-#   prove -l
-#
-#   Verbose mode:
-#
-#   prove -lv
-#
-###################################################
-
-###################################################
-#
 # Test Setup
 #
 ###################################################
 
 my $MODULE       = 'TeXDown::TConfig';
 
-my @DEPENDENCIES = qw / TeXDown::TConfig
+my @DEPENDENCIES = qw / TeXDown::TMain
+                        TeXDown::TConfig
                         TeXDown::TUtils
                         TeXDown::TParser
                         TeXDown::TFileResolver
@@ -124,7 +97,7 @@ use lib dirname( abs_path $0) . '/../lib';
 binmode STDOUT, ":utf8";
 use utf8;
 use feature qw(say);
-use Data::Dumper qw (Dumper);
+use Data::Dump "pp";
 use Module::Load;
 
 ###################################################
