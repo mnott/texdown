@@ -196,7 +196,7 @@ sub run {
 
 ARG:
     foreach my $arg (@_) {
-        $self->log->warn( "net configuration: " . pp( $cfg->describe() ) );
+        $self->log->debug( "Start Configuration: " . pp( $cfg->describe() ) );
 
         #
         # Narrow down the projects that we have got on the
@@ -278,7 +278,7 @@ ARG:
                             $cfg->set( "scriv",  $dir );
                             $cfg->set( "scrivx", $file );
                             $cfgvar = "\nini : " . $cfg->get("c");
-                            $netcfg = "net configuration: "
+                            $netcfg = "Final Configuration: "
                                 . pp( $cfg->describe() );
                         }
                         $self->log->info(
@@ -322,13 +322,13 @@ ARG:
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "configuring " . $cfg->get("c");
-                    $netcfg = "net configuration: " . pp( $cfg->describe() );
+                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 else {
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "without configuration file: ";
-                    $netcfg = "net configuration: " . pp( $cfg->describe() );
+                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 $self->log->info(
                     "[2] Running $cfgvar \ndir : $dir \nfile: $file");
@@ -352,13 +352,13 @@ ARG:
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "configuring " . $cfg->get("c");
-                    $netcfg = "net configuration: " . pp( $cfg->describe() );
+                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 else {
                     $cfg->set( "scriv",  $dir );
                     $cfg->set( "scrivx", $file );
                     $cfgvar = "without configuration file: ";
-                    $netcfg = "net configuration: " . pp( $cfg->describe() );
+                    $netcfg = "Final Configuration: " . pp( $cfg->describe() );
                 }
                 $self->log->info(
                     "[3] Running on plain text $cfgvar \ndir : $dir \nfile: $file"
@@ -397,7 +397,8 @@ sub _cleanup {
         {   'keep' => [ "i", "l", "s", "parser", "n", "v", "doc", "h", "man" ]
         }
     );
-    $self->log->debug( "=" x 30 );
+
+    $self->log->debug( "==" . "=" x 40 );
 }
 
 sub describe {

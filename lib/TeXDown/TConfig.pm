@@ -1698,8 +1698,6 @@ sub load {
     my $cfg = $self->{cfg_of};
 
     $self->log->trace( "> " . "-" x 40 );
-    $self->log->debug(
-        "Loading with parameters: " . $self->t_as_string( $ini, $arg_ref ) );
 
     my $config_file;
 
@@ -1728,7 +1726,7 @@ sub load {
     #
     # Load the configuration File
     #
-    $self->log->info("Loading $config_file");
+    $self->log->info("Loading Config: $config_file");
 
     my $config = new Config::Simple($config_file);
 
