@@ -141,11 +141,12 @@ GetOptions(
 pod2usage(1) if $cfg->contains_key("h");
 pod2usage( -exitval => 0, -verbose => 2 ) if $cfg->contains_key("m");
 
-
+###################################################
 #
-# Instantiate the File Resolver
+# Run the Main Program
 #
-
+###################################################
+#
 my $texdown = TeXDown::TMain->new( cfg => $cfg );
 
 
