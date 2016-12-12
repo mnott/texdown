@@ -123,7 +123,7 @@ Log::Log4perl->init( dirname( abs_path $0) . "/../log4p.ini" );
 foreach my $dependency (@DEPENDENCIES) {
     load $dependency;
     if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
-        get_logger($dependency)->level( $ENV{LOGLEVEL} );
+        get_logger($dependency)->level( uc $ENV{LOGLEVEL} );
     }
 }
 

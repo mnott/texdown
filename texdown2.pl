@@ -90,7 +90,7 @@ my @DEPENDENCIES = qw / TeXDown::TConfig
 foreach my $dependency (@DEPENDENCIES) {
     load $dependency;
     if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
-        get_logger($dependency)->level( $ENV{LOGLEVEL} );
+        get_logger($dependency)->level( uc $ENV{LOGLEVEL} );
     }
 }
 
