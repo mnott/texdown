@@ -191,6 +191,17 @@ sub load {
     my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
     my ($d, $parserfile) = $resolver->resolve_files($parser);
 
+    #
+    # If that lookup did not work, e.g. because we were called
+    # with no parser specification through command line or config
+    # file, we are going to use parser.cfg but may not be calling
+    # the program from the program's root directory. Hence, we
+    # explicitly try to find parser.cfg there.
+    #
+    if (! defined $parserfile || !-f $parserfile) {
+        $parserfile = dirname( abs_path $0) . '/' . $parser;
+    }
+
     if (!defined $parserfile || !-f $parserfile ) {
         pod2usage(
             {   -message =>
