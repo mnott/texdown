@@ -105,7 +105,7 @@ if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
 #
 # Parse the Command Line.
 #
-# - Uses TeXDown::Config
+# - Uses TeXDown::TConfig
 # - Exposes variables as $cfg->get("x") etc.
 #   (which can be arrays, depending on how they
 #   have been filled through GetOptions). In any
