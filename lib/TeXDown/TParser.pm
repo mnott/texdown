@@ -131,19 +131,19 @@ $parser->load();
 
 
 has cfg_of => (
-    is   => 'ro',
+    is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
 );
 
 has parser_of => (
-    is      => 'ro',
+    is      => 'rw',
     isa     => 'ArrayRef',
     default => sub { [] },
     lazy    => 0,
 );
 
-has 'xparser' => ( is => 'ro', isa => 'ArrayRef', default => sub { [] }, );
+has 'xparser' => ( is => 'rw', isa => 'ArrayRef', default => sub { [] }, );
 has 'itemlevel'   => ( is => 'rw', isa => 'Int', default => 0 );
 has 'currentitem' => ( is => 'rw', isa => 'Str', default => "" );
 
@@ -157,18 +157,13 @@ has 'currentitem' => ( is => 'rw', isa => 'Str', default => "" );
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-
-    # If we have been given an configuration object, we make it
-    # available
-    if ( exists $arg_ref->{cfg} ) {
-        $self->{cfg_of} = $arg_ref->{cfg};
-    }
+    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
 }
 
 sub load {
     my ( $self, $parser, $arg_ref ) = @_;
 
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     # If we have been given a parser location, we use
     # that one
@@ -189,7 +184,7 @@ sub load {
     # Resolve the Parser File
     #
     my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
-    my ($d, $parserfile) = $resolver->resolve_files($parser);
+    my ( $d, $parserfile ) = $resolver->resolve_files($parser);
 
     #
     # If that lookup did not work, e.g. because we were called
@@ -198,14 +193,13 @@ sub load {
     # the program from the program's root directory. Hence, we
     # explicitly try to find parser.cfg there.
     #
-    if (! defined $parserfile || !-f $parserfile) {
+    if ( !defined $parserfile || !-f $parserfile ) {
         $parserfile = dirname( abs_path $0) . '/' . $parser;
     }
 
-    if (!defined $parserfile || !-f $parserfile ) {
+    if ( !defined $parserfile || !-f $parserfile ) {
         pod2usage(
-            {   -message =>
-                    "\nParser Configuration file $parser not found\n",
+            {   -message => "\nParser Configuration file $parser not found\n",
                 -exitval => 2,
             }
         );
@@ -646,13 +640,13 @@ sub commentsParser {
 sub describe {
     my ($self) = @_;
 
-    return $self->{parser_of};
+    return $self->parser_of;
 }
 
 sub dump {
     my ($self) = @_;
     $Data::Dumper::Terse = 1;
-    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe() ) } );
+    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe ) } );
 }
 
 

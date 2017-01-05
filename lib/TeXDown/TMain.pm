@@ -45,6 +45,7 @@ use namespace::autoclean -except => sub { $_ =~ m{^t_.*} };
 
 use TeXDown::TConfig;
 use TeXDown::TUtils qw/ t_as_string /;
+use TeXDown::Scrivener::TScrivener;
 
 
 =begin testing SETUP
@@ -150,7 +151,7 @@ $cfg->load($INI);
 
 
 has cfg_of => (
-    is   => 'ro',
+    is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
 );
@@ -166,12 +167,7 @@ has cfg_of => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-
-    # If we have been given an configuration object, we make it
-    # available
-    if ( exists $arg_ref->{cfg} ) {
-        $self->{cfg_of} = $arg_ref->{cfg};
-    }
+    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
 }
 
 
@@ -187,7 +183,7 @@ sub run {
     my $self = shift;
     $self->log->trace( $self->t_as_string(@_) );
 
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     #
     # Instantiate the File Resolver
@@ -287,6 +283,10 @@ ARG:
                         $self->log->debug($netcfg) if "" ne $netcfg;
 
                         #runFromCfg( $dir, $file );
+                        #
+                        my $scrivener = $self->load_scrivx($dir, $file);
+
+                        $scrivener->parse();
 
                         #
                         # Restore configuration file setting
@@ -330,6 +330,9 @@ ARG:
                     "[2] Running $cfgvar \ndir : $dir \nfile: $file");
                 $self->log->debug($netcfg) if "" ne $netcfg;
 
+                my $scrivener = $self->load_scrivx($dir, $file);
+
+                $scrivener->parse();
 
                 #parseScrivener( $dir, $file );
             }    # if ( defined($project) && $project ne "" )
@@ -373,16 +376,28 @@ ARG:
 }
 
 
+sub load_scrivx {
+    my ( $self, $dir, $file, $arg_ref ) = @_;
+    my $cfg = $self->cfg_of;
+
+    $self->log->trace( $self->t_as_string($dir, $file, $arg_ref) );
+
+    my $scrivener = TeXDown::Scrivener::TScrivener->new( cfg => $cfg );
+    $scrivener->load($dir, $file);
+
+    return $scrivener;
+}
+
 sub describe {
     my ($self) = @_;
 
-    return $self->{cfg_of};
+    return $self->cfg_of;
 }
 
 sub dump {
     my ($self) = @_;
     $Data::Dumper::Terse = 1;
-    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe() ) } );
+    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe ) } );
 }
 
 

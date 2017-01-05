@@ -108,12 +108,16 @@ ok (1 == 1, 'Passed: Construct');
 
 
 use Exporter 'import';
+use XML::LibXML;
+use XML::LibXML::PrettyPrint;
 
 our @EXPORT_OK = qw/ t_as_string /;
 
 sub t_as_string {
     my $self = shift;
     my $res  = "";
+    my $pp   = XML::LibXML::PrettyPrint->new( indent_string => "  " );
+
     foreach my $arg (@_) {
         if ( !defined $arg ) {
             $res .= "";

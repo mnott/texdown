@@ -143,7 +143,7 @@ $cfg->load($INI);
 
 
 has cfg_of => (
-    is      => 'ro',
+    is      => 'rw',
     traits  => ['Hash'],
     isa     => 'HashRef',
     lazy    => 0,
@@ -162,11 +162,7 @@ has cfg_of => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-
-    # If we have been given an ini file, we load it immediately
-    if ( exists $arg_ref->{ini} ) {
-        $self->load( $arg_ref->{ini} );
-    }
+    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
 }
 
 
@@ -357,7 +353,7 @@ Example:
 
 sub set {
     my ( $self, $var, $val, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace( "$var = " . $self->t_as_string($val) );
 
@@ -905,7 +901,7 @@ Example:
 #
 sub append {
     my ( $self, $var, $val, $as, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace(
         "$var = " . $self->t_as_string( $val, $as, $arg_ref ) );
@@ -1056,7 +1052,7 @@ Example:
 
 sub get {
     my ( $self, $var, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     my $log = "$var " . $self->t_as_string($arg_ref) . ": ";
 
@@ -1200,7 +1196,7 @@ Example:
 
 sub clear {
     my ( $self, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace( "Clearing " . $self->t_as_string($arg_ref) );
 
@@ -1269,7 +1265,7 @@ Example:
 
 sub key_set {
     my ( $self, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace( $self->t_as_string( keys %$cfg, $arg_ref ) );
 
@@ -1307,7 +1303,7 @@ Example:
 
 sub contains_key {
     my ( $self, $var, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     my $res = exists $cfg->{$var};
 
@@ -1354,7 +1350,7 @@ Example:
 
 sub remove {
     my ( $self, $var, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace( $self->t_as_string( $var, $arg_ref ) );
 
@@ -1393,7 +1389,7 @@ Example:
 
 sub size {
     my ( $self, $var, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     my $size = keys %$cfg;
 
@@ -1429,7 +1425,7 @@ Example:
 
 sub is_empty {
     my ( $self, $var, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace( "+ " . ( 0 == keys %$cfg ) );
 
@@ -1468,7 +1464,7 @@ Example:
 
 sub add_all {
     my ( $self, $var, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace( $self->t_as_string( $var, $arg_ref ) );
 
@@ -1695,7 +1691,7 @@ and you'd have:
 
 sub load {
     my ( $self, $ini, $arg_ref ) = @_;
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     $self->log->trace( "> " . "-" x 40 );
 
@@ -1829,13 +1825,13 @@ sub load {
 sub describe {
     my ($self) = @_;
 
-    return $self->{cfg_of};
+    return $self->cfg_of;
 }
 
 sub dump {
     my ($self) = @_;
     $Data::Dumper::Terse = 1;
-    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe() ) } );
+    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe ) } );
 }
 
 

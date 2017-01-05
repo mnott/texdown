@@ -132,7 +132,7 @@ my $resolver = TeXDown::TFileResolver->new ( cfg => $cfg );
 
 
 has cfg_of => (
-    is   => 'ro',
+    is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
 );
@@ -148,12 +148,7 @@ has cfg_of => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-
-    # If we have been given an configuration object, we make it
-    # available
-    if ( exists $arg_ref->{cfg} ) {
-        $self->{cfg_of} = $arg_ref->{cfg};
-    }
+    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
 }
 
 
@@ -186,7 +181,7 @@ sub resolve_files {
     my ( $self, $arg, $arg_ref ) = @_;
     $self->log->trace( $self->t_as_string( $arg, $arg_ref ) );
 
-    my $cfg = $self->{cfg_of};
+    my $cfg = $self->cfg_of;
 
     if ( -e "$arg" || -e "$arg.scriv" ) {
         my ( $fname, $fpath, $fsuffix ) = fileparse( $arg, qr/\.[^.]*/ );
@@ -239,13 +234,13 @@ sub resolve_files {
 sub describe {
     my ($self) = @_;
 
-    return $self->{cfg_of};
+    return $self->cfg_of;
 }
 
 sub dump {
     my ($self) = @_;
     $Data::Dumper::Terse = 1;
-    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe() ) } );
+    $self->log->trace( sub { Data::Dumper::Dumper( $self->describe ) } );
 }
 
 
