@@ -150,7 +150,7 @@ $cfg->load($INI);
 =cut
 
 
-has cfg_of => (
+has cfg => (
     is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
@@ -167,7 +167,7 @@ has cfg_of => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
+    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 
@@ -183,7 +183,7 @@ sub run {
     my $self = shift;
     $self->log->trace( $self->t_as_string(@_) );
 
-    my $cfg = $self->cfg_of;
+    my $cfg = $self->cfg;
 
     #
     # Instantiate the File Resolver
@@ -284,7 +284,7 @@ ARG:
 
                         #runFromCfg( $dir, $file );
                         #
-                        my $scrivener = $self->load_scrivx($dir, $file);
+                        my $scrivener = $self->load_scrivx( $dir, $file );
 
                         $scrivener->parse();
 
@@ -330,7 +330,7 @@ ARG:
                     "[2] Running $cfgvar \ndir : $dir \nfile: $file");
                 $self->log->debug($netcfg) if "" ne $netcfg;
 
-                my $scrivener = $self->load_scrivx($dir, $file);
+                my $scrivener = $self->load_scrivx( $dir, $file );
 
                 $scrivener->parse();
 
@@ -378,12 +378,12 @@ ARG:
 
 sub load_scrivx {
     my ( $self, $dir, $file, $arg_ref ) = @_;
-    my $cfg = $self->cfg_of;
+    my $cfg = $self->cfg;
 
-    $self->log->trace( $self->t_as_string($dir, $file, $arg_ref) );
+    $self->log->trace( $self->t_as_string( $dir, $file, $arg_ref ) );
 
     my $scrivener = TeXDown::Scrivener::TScrivener->new( cfg => $cfg );
-    $scrivener->load($dir, $file);
+    $scrivener->load( $dir, $file );
 
     return $scrivener;
 }
@@ -391,7 +391,7 @@ sub load_scrivx {
 sub describe {
     my ($self) = @_;
 
-    return $self->cfg_of;
+    return $self->cfg;
 }
 
 sub dump {

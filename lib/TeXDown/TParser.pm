@@ -130,13 +130,13 @@ $parser->load();
 =cut
 
 
-has cfg_of => (
+has cfg => (
     is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
 );
 
-has parser_of => (
+has parser => (
     is      => 'rw',
     isa     => 'ArrayRef',
     default => sub { [] },
@@ -157,13 +157,13 @@ has 'currentitem' => ( is => 'rw', isa => 'Str', default => "" );
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
+    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 sub load {
     my ( $self, $parser, $arg_ref ) = @_;
 
-    my $cfg = $self->cfg_of;
+    my $cfg = $self->cfg;
 
     # If we have been given a parser location, we use
     # that one
@@ -226,7 +226,7 @@ sub load {
             $pline{"s"}  = "$1";
             $pline{"r"}  = "$2";
             $pline{"$1"} = "$2";
-            push @{ $self->parser_of }, \%pline;
+            push @{ $self->parser }, \%pline;
         }
     }
     close $info;
@@ -284,7 +284,7 @@ sub parse {
             $comment = "%" . $2;
         }
 
-        for my $pline ( @{ $self->parser_of } ) {
+        for my $pline ( @{ $self->parser } ) {
             my $search  = %$pline{"s"};
             my $replace = %$pline{"r"};
             $replace =~ s/\\/\\\\/g;
@@ -640,7 +640,7 @@ sub commentsParser {
 sub describe {
     my ($self) = @_;
 
-    return $self->parser_of;
+    return $self->parser;
 }
 
 sub dump {

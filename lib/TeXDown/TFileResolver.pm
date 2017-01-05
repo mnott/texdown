@@ -131,7 +131,7 @@ my $resolver = TeXDown::TFileResolver->new ( cfg => $cfg );
 =cut
 
 
-has cfg_of => (
+has cfg => (
     is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
@@ -148,7 +148,7 @@ has cfg_of => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
+    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 
@@ -181,7 +181,7 @@ sub resolve_files {
     my ( $self, $arg, $arg_ref ) = @_;
     $self->log->trace( $self->t_as_string( $arg, $arg_ref ) );
 
-    my $cfg = $self->cfg_of;
+    my $cfg = $self->cfg;
 
     if ( -e "$arg" || -e "$arg.scriv" ) {
         my ( $fname, $fpath, $fsuffix ) = fileparse( $arg, qr/\.[^.]*/ );
@@ -234,7 +234,7 @@ sub resolve_files {
 sub describe {
     my ($self) = @_;
 
-    return $self->cfg_of;
+    return $self->cfg;
 }
 
 sub dump {
