@@ -154,21 +154,19 @@ sub BUILD {
 }
 
 sub load {
-    my ( $self, $doc, $arg_ref ) = @_;
-    my $cfg     = $self->cfg;
-    my $binders = $self->binders;
+    my ( $self, $doc ) = @_;
 
     $self->log->trace("Loading TProject");
 
     my @xml_binders = $doc->findnodes('/ScrivenerProject/Binder');
 
     foreach my $xml_binder (@xml_binders) {
-        my $binder = TeXDown::Scrivener::TBinder->new( cfg => $cfg );
+        my $binder = TeXDown::Scrivener::TBinder->new( cfg => $self->cfg );
         $binder->load($xml_binder);
-        push( @$binders, $binder );
+        push( @{ $self->binders }, $binder );
     }
 
-    $self->log->trace( "Loaded " . ( scalar @$binders ) . " binders" );
+    $self->log->trace( "Loaded " . $self->size . " binders" );
 }
 
 
@@ -177,15 +175,11 @@ sub load {
 
 
 sub parse {
-    my ( $self, $arg_ref ) = @_;
-
-    my $cfg = $self->cfg;
+    my ($self) = @_;
 
     $self->log->trace("> Parse process");
 
-    my $binders = $self->binders;
-
-    foreach my $binder (@$binders) {
+    foreach my $binder ( @{ $self->binders } ) {
         $binder->parse;
     }
 
@@ -194,6 +188,11 @@ sub parse {
 
 
 
+sub size {
+    my ($self) = @_;
+
+    return scalar @{ $self->binders };
+}
 
 
 

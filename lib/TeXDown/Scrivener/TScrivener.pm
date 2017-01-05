@@ -154,29 +154,24 @@ sub BUILD {
 }
 
 sub load {
-    my ( $self, $dir, $file, $arg_ref ) = @_;
-    my $cfg = $self->cfg;
+    my ( $self, $dir, $file ) = @_;
 
-    $self->log->trace( $self->t_as_string( $dir, $file, $arg_ref ) );
+    $self->log->trace( $self->t_as_string( $dir, $file ) );
 
     my $doc = XML::LibXML->load_xml( location => $file );
 
-    $self->project( TeXDown::Scrivener::TProject->new( cfg => $cfg ) );
+    $self->project( TeXDown::Scrivener::TProject->new( cfg => $self->cfg ) );
 
     $self->project->load($doc);
 }
 
 
 sub parse {
-    my ( $self, $arg_ref ) = @_;
-
-    my $cfg = $self->cfg;
+    my ( $self ) = @_;
 
     $self->log->trace("> Parse process");
 
-    my $project = $self->project;
-
-    $project->parse;
+    $self->project->parse;
 
     $self->log->trace("< Parse process");
 }

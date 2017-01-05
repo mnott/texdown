@@ -1264,10 +1264,10 @@ Example:
 =cut
 
 sub key_set {
-    my ( $self, $arg_ref ) = @_;
+    my ( $self ) = @_;
     my $cfg = $self->cfg;
 
-    $self->log->trace( $self->t_as_string( keys %$cfg, $arg_ref ) );
+    $self->log->trace( $self->t_as_string( keys %$cfg ) );
 
     return keys %$cfg;
 }

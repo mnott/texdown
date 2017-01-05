@@ -170,9 +170,7 @@ sub BUILD {
 }
 
 sub load {
-    my ( $self, $el, $arg_ref ) = @_;
-    my $cfg         = $self->cfg;
-    my $binderitems = $self->binderitems;
+    my ( $self, $el ) = @_;
 
     $self->log->trace("Loading TBinder");
 
@@ -180,26 +178,21 @@ sub load {
 
     foreach my $xml_binderitem (@xml_binderitems) {
         my $binderitem = TeXDown::Scrivener::TBinderItem->new(
-            cfg    => $cfg,
+            cfg    => $self->cfg,
             binder => $self
         );
         $binderitem->load($xml_binderitem);
         $self->add($binderitem);
     }
 
-    $self->log->trace( "Loaded "
-            . ( scalar @$binderitems )
-            . " binder items for this binder" );
+    $self->log->trace(
+        "Loaded " . $self->size . " binder items for this binder" );
 }
 
 sub add {
     my ( $self, $binderitem ) = @_;
 
-    # $self->log->trace( "+ Adding: " . $binderitem->title );
-
-    my $binderitems = $self->binderitems;
-
-    push( @$binderitems, $binderitem );
+    push( @{ $self->binderitems }, $binderitem );
 
     $self->track($binderitem);
 }
@@ -210,7 +203,6 @@ sub add {
 #
 sub track {
     my ( $self, $binderitem ) = @_;
-    my $binderitems = $self->binderitems;
 
     #
     # Track by Titles
@@ -243,17 +235,15 @@ sub track {
 # output.
 #
 sub parse {
-    my ( $self, $arg_ref ) = @_;
-
-    my $cfg = $self->cfg;
+    my ($self) = @_;
 
     $self->log->trace("> Parse process");
 
     my $binderitems = $self->binderitems;
 
-    my $result = TeXDown::Scrivener::TBinder->new( cfg => $cfg );
+    my $result = TeXDown::Scrivener::TBinder->new( cfg => $self->cfg );
 
-    my @projects = @{ $cfg->get( 'p', { 'as_array' => 1 } ) };
+    my @projects = @{ $self->cfg->get( 'p', { 'as_array' => 1 } ) };
 
     foreach my $project (@projects) {
         if ( $project =~ "^/.*" ) {
@@ -298,15 +288,6 @@ sub parse {
                 );
             }
 
-
-            #foreach my $binderItem (
-            #    $doc->findnodes(
-            #        '//BinderItem[Title/text() = "' . "$project" . '"]'
-            #    )
-            #    )
-            #{
-            #    printNode( $binderItem, "", 0, $dir );
-            #}
         }
     }
 
@@ -329,68 +310,11 @@ sub by_title {
 }
 
 
-sub get_child {
-    my ( $self, $arg_ref ) = @_;
-    my $cfg = $self->cfg;
+sub size {
+    my ($self) = @_;
 
-    my $what = "";
-    my $id;
-    my $title;
-    my $uuid;
-
-    if ( exists $arg_ref->{'id'} ) {
-        $id   = $arg_ref->{'id'};
-        $what = $id;
-        $self->log->trace("> get_child (by id): $what");
-    }
-    elsif ( exists $arg_ref->{'title'} ) {
-        $title = $arg_ref->{'title'};
-        $what  = $title;
-        $self->log->trace("> get_child (by title): $what");
-    }
-    elsif ( exists $arg_ref->{'uuid'} ) {
-        $uuid = $arg_ref->{'uuid'};
-        $what = $uuid;
-        $self->log->trace("> get_child (by uuid): $what");
-    }
-
-
-    my $binderitems = $self->binderitems;
-
-
-
-    foreach my $binderitem (@$binderitems) {
-        if ($id) {
-            if ( $id == $binderitem->id ) {
-                $self->log->trace("< get_child: $what");
-                return $binderitem;
-            }
-        }
-        elsif ($title) {
-            if ( $title eq $binderitem->title ) {
-                $self->log->trace("< get_child: $what");
-                return $binderitem;
-            }
-        }
-        elsif ($uuid) {
-            if ( $uuid eq $binderitem->uuid ) {
-                $self->log->trace("< get_child: $what");
-                return $binderitem;
-            }
-        }
-        else {
-            $self->log->error("< get_child: where you looking for? ($what)");
-            return undef;
-        }
-
-    }
-
-    $self->log->trace("< get_child: $what not found.");
-    return undef;
+    return scalar @{ $self->binderitems };
 }
-
-
-
 
 
 sub describe {

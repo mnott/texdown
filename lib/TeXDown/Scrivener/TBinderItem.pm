@@ -195,18 +195,10 @@ sub BUILD {
     else {
         $self->level(1);
     }
-
-    $self->binder( $arg_ref->{binder} ) if exists $arg_ref->{binder};
-    $self->id( $arg_ref->{id} )         if exists $arg_ref->{id};
-    $self->title( $arg_ref->{title} )   if exists $arg_ref->{title};
-    $self->uuid( $arg_ref->{uuid} )     if exists $arg_ref->{uuid};
-    $self->type( $arg_ref->{type} )     if exists $arg_ref->{type};
-
 }
 
 sub load {
-    my ( $self, $el, $arg_ref ) = @_;
-    my $cfg         = $self->cfg;
+    my ( $self, $el ) = @_;
     my $level       = $self->level;
     my $binderitems = $self->binderitems;
 
@@ -233,7 +225,7 @@ sub load {
 
     foreach my $xml_binderitem (@xml_binderitems) {
         my $binderitem = TeXDown::Scrivener::TBinderItem->new(
-            cfg    => $cfg,
+            cfg    => $self->cfg,
             level  => ++$level,
             binder => $self->binder,
         );
@@ -247,33 +239,10 @@ sub load {
 sub add {
     my ( $self, $binderitem ) = @_;
 
-    # $self->log->trace( "+ Adding: " . $binderitem->title );
+    push( @{ $self->binderitems }, $binderitem );
 
-    my $binderitems = $self->binderitems;
-
-    push( @$binderitems, $binderitem );
-
-    my $binder = $self->binder;
-
-    $binder->track($binderitem);
+    $self->binder->track($binderitem);
 }
-
-sub shallow {
-    my ($self) = @_;
-
-    my $result = TeXDown::Scrivener::TBinderItem->new(
-        cfg    => $self->cfg,
-        binder => $self->binder,
-        level  => $self->level,
-        id     => $self->id,
-        title  => $self->title,
-        uuid   => $self->uuid,
-        type   => $self->type,
-    );
-
-    return $result;
-}
-
 
 
 #
