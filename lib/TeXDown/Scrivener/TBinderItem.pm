@@ -15,7 +15,7 @@ You can use it like so:
     # Initialize, or rather, reuse from elsewhere...; $cfg
     # would be an instance of TeXDown::TConfig
 
-    my $parser = TeXDown::Scrivener::TBinderItem->new( cfg => $cfg );
+    my $parser = TeXDown::Scrivener::TBinderItem->new( cfg => $cfg, binder => $self );
 
 =head1 METHODS
 
@@ -123,13 +123,19 @@ $cfg->load($INI);
 =cut
 
 
-has cfg_of => (
+has cfg => (
     is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
 );
 
-has binderitems_of => (
+has binder => (
+    is   => 'rw',
+    isa  => 'TeXDown::Scrivener::TBinder',
+    lazy => 0,
+);
+
+has binderitems => (
     traits  => ['Array'],
     is      => 'rw',
     isa     => 'ArrayRef[TeXDown::Scrivener::TBinderItem]',
@@ -137,11 +143,36 @@ has binderitems_of => (
     lazy    => 0,
 );
 
-has level_of => (
+has level => (
     is  => 'rw',
     isa => 'Int',
 );
 
+has id => (
+    is  => 'rw',
+    isa => 'Int',
+);
+
+
+has title => (
+    is  => 'rw',
+    isa => 'Str',
+);
+
+has uuid => (
+    is  => 'rw',
+    isa => 'Str',
+);
+
+has inc => (
+    is  => 'rw',
+    isa => 'Bool',
+);
+
+has type => (
+    is  => 'rw',
+    isa => 'Str',
+);
 
 
 
@@ -155,26 +186,42 @@ has level_of => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg_of( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
+    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 
 
     if ( exists $arg_ref->{level} ) {
-        $self->level_of( $arg_ref->{level} );
+        $self->level( $arg_ref->{level} );
     }
     else {
-        $self->level_of(1);
+        $self->level(1);
     }
+
+    $self->binder( $arg_ref->{binder} ) if exists $arg_ref->{binder};
+    $self->id( $arg_ref->{id} )         if exists $arg_ref->{id};
+    $self->title( $arg_ref->{title} )   if exists $arg_ref->{title};
+    $self->uuid( $arg_ref->{uuid} )     if exists $arg_ref->{uuid};
+    $self->type( $arg_ref->{type} )     if exists $arg_ref->{type};
 
 }
 
 sub load {
     my ( $self, $el, $arg_ref ) = @_;
-    my $cfg         = $self->cfg_of;
-    my $level       = $self->level_of;
-    my $binderitems = $self->binderitems_of;
+    my $cfg         = $self->cfg;
+    my $level       = $self->level;
+    my $binderitems = $self->binderitems;
 
-    my $id    = $el->getAttribute("ID");
-    my $title = $el->find("Title")->to_literal->value;
+    my $id       = $el->getAttribute("ID");
+    my $title    = $el->find("Title")->to_literal->value;
+    my $uuid     = $el->getAttribute("UUID");
+    my $type     = $el->getAttribute("Type");
+    my $metadata = $el->findnodes("MetaData")->[0];
+    my $inc      = $metadata->find("IncludeInCompile")->to_literal->value;
+
+    $self->id($id);
+    $self->title($title);
+    $self->uuid($uuid);
+    $self->type($type);
+    $self->inc( "Yes" eq $inc );
 
     my $indent = "  " x $level;
 
@@ -186,17 +233,112 @@ sub load {
 
     foreach my $xml_binderitem (@xml_binderitems) {
         my $binderitem = TeXDown::Scrivener::TBinderItem->new(
-            cfg   => $cfg,
-            level => ++$level
+            cfg    => $cfg,
+            level  => ++$level,
+            binder => $self->binder,
         );
         $binderitem->load($xml_binderitem);
-        push( @$binderitems, $binderitem );
+        $self->add($binderitem);
     }
 
 #$self->log->trace( "Loaded " . $id . $indent . $title . "(" . (scalar @xml_binderitems) . " children)");
 }
 
+sub add {
+    my ( $self, $binderitem ) = @_;
 
+    # $self->log->trace( "+ Adding: " . $binderitem->title );
+
+    my $binderitems = $self->binderitems;
+
+    push( @$binderitems, $binderitem );
+
+    my $binder = $self->binder;
+
+    $binder->track($binderitem);
+}
+
+sub shallow {
+    my ($self) = @_;
+
+    my $result = TeXDown::Scrivener::TBinderItem->new(
+        cfg    => $self->cfg,
+        binder => $self->binder,
+        level  => $self->level,
+        id     => $self->id,
+        title  => $self->title,
+        uuid   => $self->uuid,
+        type   => $self->type,
+    );
+
+    return $result;
+}
+
+
+
+#
+# print
+#
+# Recursive Function to conditionally print an dive into children
+#
+sub print {
+    my ( $self, $arg_ref ) = @_;
+
+    my $parent = $arg_ref->{parent};
+    my $path   = $arg_ref->{path};
+    my $level  = $arg_ref->{level};
+    my $dir    = $self->cfg->get("dir");
+
+    $self->log->trace("+ Print: " . $parent->title);
+
+    my $parentTitle = "$path/" . $parent->title;
+    my $docId       = $parent->id;
+    my $docType     = $parent->type;
+    my $docTitle    = $parent->title;
+    my $inc         = $parent->inc;
+
+    my $all  = $self->cfg->get("all");
+    my $list = $self->cfg->get("l");
+
+    #
+    # If we are restricting by the Scrivener metadata field
+    # IncludeInCompile (which we do by default), then if a
+    # given node has that field unchecked, we don't print
+    # that node, and we don't dive into it's children.
+    #
+    return if ( !$all && !$inc );
+
+    #
+    # If the current node is a text node, we have to print it
+    #
+    if ( $docType eq "Text" ) {
+        if ($list) {
+            my $printline = sprintf( "[%8d] %s", $docId, $parentTitle );
+
+            print "$printline\n";
+        }
+        else {
+            $self->log->trace("We will be printing content here.");
+
+        }
+    }
+
+
+    #
+    # If the current node has children, we need to call them (and let
+    # them decide whether they want to process themselves)
+    #
+    my $binderitems = $self->binderitems;
+
+    foreach my $binderitem (@$binderitems) {
+        $binderitem->print(
+            {   parent => $binderitem,
+                path   => $parentTitle,
+                level  => ++$level,
+            }
+        );
+    }
+}
 
 
 
@@ -204,7 +346,7 @@ sub load {
 sub describe {
     my ($self) = @_;
 
-    return $self->binderitems_of;
+    return $self->binderitems;
 }
 
 sub dump {

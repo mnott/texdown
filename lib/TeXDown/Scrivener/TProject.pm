@@ -125,13 +125,13 @@ $cfg->load($INI);
 =cut
 
 
-has cfg_of => (
+has cfg => (
     is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
 );
 
-has binders_of => (
+has binders => (
     traits  => ['Array'],
     is      => 'rw',
     isa     => 'ArrayRef[TeXDown::Scrivener::TBinder]',
@@ -150,15 +150,15 @@ has binders_of => (
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
     $self->log->trace("Instantiated TProject");
-    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
+    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 sub load {
     my ( $self, $doc, $arg_ref ) = @_;
-    my $cfg     = $self->cfg_of;
-    my $binders = $self->binders_of;
+    my $cfg     = $self->cfg;
+    my $binders = $self->binders;
 
-    $self->log->trace( $self->t_as_string( $doc, $arg_ref ) );
+    $self->log->trace("Loading TProject");
 
     my @xml_binders = $doc->findnodes('/ScrivenerProject/Binder');
 
@@ -172,19 +172,38 @@ sub load {
 }
 
 
-sub count {
-    my ($self) = @_;
 
-    my $binders = $self->binders_of;
 
-    return scalar @$binders;
+
+
+sub parse {
+    my ( $self, $arg_ref ) = @_;
+
+    my $cfg = $self->cfg;
+
+    $self->log->trace("> Parse process");
+
+    my $binders = $self->binders;
+
+    foreach my $binder (@$binders) {
+        $binder->parse;
+    }
+
+    $self->log->trace("< Parse process");
 }
+
+
+
+
+
+
+
 
 
 sub describe {
     my ($self) = @_;
 
-    return $self->binders_of;
+    return $self->binders;
 }
 
 sub dump {

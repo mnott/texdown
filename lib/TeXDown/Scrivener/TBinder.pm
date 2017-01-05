@@ -45,7 +45,7 @@ with 'MooseX::Log::Log4perl';
 use namespace::autoclean -except => sub { $_ =~ m{^t_.*} };
 
 use TeXDown::TConfig;
-use TeXDown::TUtils qw/ t_as_string /;
+use TeXDown::TUtils qw/ t_as_string t_split /;
 use TeXDown::Scrivener::TBinderItem;
 
 =begin testing SETUP
@@ -122,19 +122,38 @@ $cfg->load($INI);
 =cut
 
 
-has cfg_of => (
+has cfg => (
     is   => 'rw',
     isa  => 'TeXDown::TConfig',
     lazy => 0,
 );
 
-has binderitems_of => (
+has binderitems => (
     traits  => ['Array'],
     is      => 'rw',
     isa     => 'ArrayRef[TeXDown::Scrivener::TBinderItem]',
     default => sub { [] },
     lazy    => 0,
 );
+
+has binderitems_by_title => (
+    traits  => ['Hash'],
+    is      => 'rw',
+    isa     => 'HashRef[ArrayRef[TeXDown::Scrivener::TBinderItem]]',
+    default => sub { {} },
+    lazy    => 0,
+);
+
+
+has binderitems_by_id => (
+    traits  => ['Hash'],
+    is      => 'rw',
+    isa     => 'HashRef[TeXDown::Scrivener::TBinderItem]',
+    default => sub { {} },
+    lazy    => 0,
+);
+
+
 
 =begin testing Construct
 
@@ -146,42 +165,238 @@ has binderitems_of => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->log->trace( "Instantiated TBinder" );
-    $self->cfg_of($arg_ref->{cfg}) if exists $arg_ref->{cfg};
+    $self->log->trace("Instantiated TBinder");
+    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 sub load {
     my ( $self, $el, $arg_ref ) = @_;
-    my $cfg = $self->cfg_of;
-    my $binderitems = $self->binderitems_of;
+    my $cfg         = $self->cfg;
+    my $binderitems = $self->binderitems;
 
-    $self->log->trace( $self->t_as_string($el, $arg_ref) );
+    $self->log->trace("Loading TBinder");
 
     my @xml_binderitems = $el->findnodes('BinderItem');
 
     foreach my $xml_binderitem (@xml_binderitems) {
-        my $binderitem = TeXDown::Scrivener::TBinderItem->new( cfg => $cfg );
+        my $binderitem = TeXDown::Scrivener::TBinderItem->new(
+            cfg    => $cfg,
+            binder => $self
+        );
         $binderitem->load($xml_binderitem);
-        push( @$binderitems, $binderitem );
+        $self->add($binderitem);
     }
 
-    $self->log->trace( "Loaded " . ( scalar @$binderitems ) . " binder items for this binder" );
+    $self->log->trace( "Loaded "
+            . ( scalar @$binderitems )
+            . " binder items for this binder" );
+}
 
+sub add {
+    my ( $self, $binderitem ) = @_;
+
+    # $self->log->trace( "+ Adding: " . $binderitem->title );
+
+    my $binderitems = $self->binderitems;
+
+    push( @$binderitems, $binderitem );
+
+    $self->track($binderitem);
+}
+
+
+#
+# Add the shortcuts for each binder item
+#
+sub track {
+    my ( $self, $binderitem ) = @_;
+    my $binderitems = $self->binderitems;
+
+    #
+    # Track by Titles
+    #
+    my %htitles = %{ $self->binderitems_by_title };
+
+    my @arr;
+
+    if ( exists $htitles{ $binderitem->title } ) {
+        @arr = @{ $htitles{ $binderitem->title } };
+        push( @arr, $binderitem );
+    }
+    else {
+        @arr = ($binderitem);
+        $htitles{ $binderitem->title } = \@arr;
+        $self->binderitems_by_title( \%htitles );
+    }
+
+    #
+    # Track by IDs (simpler, since we assume IDs are unique)
+    #
+    my %hids = %{ $self->binderitems_by_id };
+    $hids{ $binderitem->id } = $binderitem;
+    $self->binderitems_by_id( \%hids );
+}
+
+#
+# When we parse our binder, we create a new binder which will
+# contain the flat list of binderitems that we will then next
+# output.
+#
+sub parse {
+    my ( $self, $arg_ref ) = @_;
+
+    my $cfg = $self->cfg;
+
+    $self->log->trace("> Parse process");
+
+    my $binderitems = $self->binderitems;
+
+    my $result = TeXDown::Scrivener::TBinder->new( cfg => $cfg );
+
+    my @projects = @{ $cfg->get( 'p', { 'as_array' => 1 } ) };
+
+    foreach my $project (@projects) {
+        if ( $project =~ "^/.*" ) {
+            #
+            # Absolute location
+            #
+            #$self->log->trace( "+ Parsing p = " . $project );
+
+            ## Split the path into an array
+            #my @locations = t_split( "/", $project );
+
+            #my $binderitem = $self->get_child( { title => @locations[0] } );
+
+            #if (defined $binderitem) {
+
+            #}
+
+        }
+        elsif ( $project =~ /^-?\d+$/ ) {
+            #
+            # Giving directly a project Id
+            #
+            #foreach my $binderItem (
+            #    $doc->findnodes( '//BinderItem[@ID="' . $project . '"]' ) )
+            #{
+            #    printNode( $binderItem, "", 0, $dir );
+            #}
+        }
+        else {
+            #
+            # Relative location; /Children/* are being resolved by recursion
+            #
+            my $binderitems = $self->by_title($project);
+
+            foreach my $binderitem (@$binderitems) {
+                $binderitem->print(
+                    {   parent => $binderitem,
+                        path   => "",
+                        level  => 0,
+                    }
+
+                );
+            }
+
+
+            #foreach my $binderItem (
+            #    $doc->findnodes(
+            #        '//BinderItem[Title/text() = "' . "$project" . '"]'
+            #    )
+            #    )
+            #{
+            #    printNode( $binderItem, "", 0, $dir );
+            #}
+        }
+    }
+
+
+    $self->log->trace("< Parse process");
+}
+
+sub by_title {
+    my ( $self, $title ) = @_;
+
+    my %htitles = %{ $self->binderitems_by_title };
+
+    my @arr;
+
+    if ( exists $htitles{$title} ) {
+        @arr = @{ $htitles{$title} };
+    }
+
+    return \@arr;
+}
+
+
+sub get_child {
+    my ( $self, $arg_ref ) = @_;
+    my $cfg = $self->cfg;
+
+    my $what = "";
+    my $id;
+    my $title;
+    my $uuid;
+
+    if ( exists $arg_ref->{'id'} ) {
+        $id   = $arg_ref->{'id'};
+        $what = $id;
+        $self->log->trace("> get_child (by id): $what");
+    }
+    elsif ( exists $arg_ref->{'title'} ) {
+        $title = $arg_ref->{'title'};
+        $what  = $title;
+        $self->log->trace("> get_child (by title): $what");
+    }
+    elsif ( exists $arg_ref->{'uuid'} ) {
+        $uuid = $arg_ref->{'uuid'};
+        $what = $uuid;
+        $self->log->trace("> get_child (by uuid): $what");
+    }
+
+
+    my $binderitems = $self->binderitems;
+
+
+
+    foreach my $binderitem (@$binderitems) {
+        if ($id) {
+            if ( $id == $binderitem->id ) {
+                $self->log->trace("< get_child: $what");
+                return $binderitem;
+            }
+        }
+        elsif ($title) {
+            if ( $title eq $binderitem->title ) {
+                $self->log->trace("< get_child: $what");
+                return $binderitem;
+            }
+        }
+        elsif ($uuid) {
+            if ( $uuid eq $binderitem->uuid ) {
+                $self->log->trace("< get_child: $what");
+                return $binderitem;
+            }
+        }
+        else {
+            $self->log->error("< get_child: where you looking for? ($what)");
+            return undef;
+        }
+
+    }
+
+    $self->log->trace("< get_child: $what not found.");
+    return undef;
 }
 
 
 
-sub test() {
-    my ($self) = @_;
-
-    $self->log->trace ("hello");
-}
 
 
 sub describe {
     my ($self) = @_;
 
-    return $self->binderitems_of;
+    return $self->binderitems;
 }
 
 sub dump {
