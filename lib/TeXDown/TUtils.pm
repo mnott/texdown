@@ -111,7 +111,7 @@ use Exporter 'import';
 use XML::LibXML;
 use XML::LibXML::PrettyPrint;
 
-our @EXPORT_OK = qw/ t_as_string /;
+our @EXPORT_OK = qw/ t_as_string t_split /;
 
 sub t_as_string {
     my $self = shift;
@@ -132,6 +132,15 @@ sub t_as_string {
     return $res;
 }
 
+
+sub t_split {
+    my ($sep, $str) = @_;
+
+    my @arr = split($sep, $str);
+
+    @arr = grep /\S/, @arr;
+    return @arr;
+}
 
 
 1;
