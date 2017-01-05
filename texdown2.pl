@@ -39,6 +39,7 @@ Licensed under WTFPL.
 
 =cut
 
+use 5.24.0;
 use strict;
 use warnings;
 
@@ -82,6 +83,8 @@ my @DEPENDENCIES = qw /
     TeXDown::TUtils
     TeXDown::TParser
     TeXDown::TFileResolver
+    TeXDown::Scrivener::TScrivener
+    TeXDown::Scrivener::TProject
     /;
 
 # Load Dependencies and set up loglevels
@@ -141,29 +144,38 @@ GetOptions(
 pod2usage(1) if $cfg->contains_key("h");
 pod2usage( -exitval => 0, -verbose => 2 ) if $cfg->contains_key("m");
 
+#
+# Shortcut for myself to recreate the documentation
+# without having to remember how it was done.
+#
+if ($cfg->get("doc")) {
+  system("$pod2md < $0 >README.md");
+  exit 0;
+}
+
+
 ###################################################
 #
 # Run the Main Program
 #
 ###################################################
-#
-my $texdown = TeXDown::TMain->new( cfg => $cfg );
 
+my $texdown = TeXDown::TMain->new( cfg => $cfg );
 
 #
 # Run or Filter?
 #
-if ( -t STDIN ) {
+#if ( -t STDIN ) {
     if ( @ARGV > 0 ) {
         $texdown->run(@ARGV);
     }
     else {
         pod2usage(2);
     }
-}
-else {
+#}
+#else {
     #runAsFilter();
-}
+#}
 
 
 
@@ -180,13 +192,13 @@ $log->trace("Done.");
 
 # Sample Parsing:
 #
-my $parser = TeXDown::TParser->new( cfg => $cfg );
-
-$parser->load();
-
-print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
-   . "\n";
-print $parser->parse("## bla blub blubber") . "\n";
+# my $parser = TeXDown::TParser->new( cfg => $cfg );
+#
+# $parser->load();
+#
+# print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
+#    . "\n";
+# print $parser->parse("## bla blub blubber") . "\n";
 
 
 exit 0;
