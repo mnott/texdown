@@ -12,10 +12,9 @@ This class holds the BinderItem of a Scrivx file.
 
 You can use it like so:
 
-    # Initialize, or rather, reuse from elsewhere...; $cfg
-    # would be an instance of TeXDown::TConfig
+    # Initialize, or rather, reuse from elsewhere...
 
-    my $parser = TeXDown::Scrivener::TBinderItem->new( cfg => $cfg, binder => $self );
+    my $parser = TeXDown::Scrivener::TBinderItem->new( binder => $self );
 
 =head1 METHODS
 
@@ -114,20 +113,13 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
 =end testing
 
 =cut
-
-
-has cfg => (
-    is   => 'rw',
-    isa  => 'TeXDown::TConfig',
-    lazy => 0,
-);
 
 has binder => (
     is   => 'rw',
@@ -186,8 +178,6 @@ has type => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
-
 
     if ( exists $arg_ref->{level} ) {
         $self->level( $arg_ref->{level} );
@@ -225,7 +215,6 @@ sub load {
 
     foreach my $xml_binderitem (@xml_binderitems) {
         my $binderitem = TeXDown::Scrivener::TBinderItem->new(
-            cfg    => $self->cfg,
             level  => ++$level,
             binder => $self->binder,
         );
@@ -256,7 +245,7 @@ sub print {
     my $parent = $arg_ref->{parent};
     my $path   = $arg_ref->{path};
     my $level  = $arg_ref->{level};
-    my $dir    = $self->cfg->get("dir");
+    my $dir    = $::cfg->get("dir");
 
     $self->log->trace("+ Print: " . $parent->title);
 
@@ -266,8 +255,8 @@ sub print {
     my $docTitle    = $parent->title;
     my $inc         = $parent->inc;
 
-    my $all  = $self->cfg->get("all");
-    my $list = $self->cfg->get("l");
+    my $all  = $::cfg->get("all");
+    my $list = $::cfg->get("l");
 
     #
     # If we are restricting by the Scrivener metadata field

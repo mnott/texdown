@@ -63,39 +63,21 @@ use lib dirname( Cwd::abs_path $0) . '/lib';
 
 ###################################################
 #
+# TeXDown modules
+#
+###################################################
+
+use TeXDown::TConfig;
+use TeXDown::TMain;
+
+###################################################
+#
 # Logger
 #
 ###################################################
 
 use Log::Log4perl qw(get_logger :levels);
 Log::Log4perl->init( dirname( abs_path $0) . "/log4p.ini" );
-
-
-###################################################
-#
-# TeXDown modules
-#
-###################################################
-
-my @DEPENDENCIES = qw /
-    TeXDown::TMain
-    TeXDown::TConfig
-    TeXDown::TUtils
-    TeXDown::TParser
-    TeXDown::TFileResolver
-    TeXDown::Scrivener::TScrivener
-    TeXDown::Scrivener::TProject
-    /;
-
-# Load Dependencies and set up loglevels
-
-foreach my $dependency (@DEPENDENCIES) {
-    load $dependency;
-    if ( exists $ENV{LOGLEVEL} && "" ne $ENV{LOGLEVEL} ) {
-        get_logger($dependency)->level( uc $ENV{LOGLEVEL} );
-    }
-}
-
 
 my $log = get_logger("TeXDown");
 
@@ -123,7 +105,7 @@ use Getopt::Long;
 #
 # Instantiate the Configuration holder
 #
-my $cfg = TeXDown::TConfig->new();
+our $cfg = TeXDown::TConfig->new;
 
 #
 # Get the command line options

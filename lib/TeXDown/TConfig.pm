@@ -14,7 +14,7 @@ configuration is stored. Think of it as a Session where you
 can put your attributes like so:
 
     # Initialize, or rather, reuse from elsewhere...
-    my $cfg = TeXDown::TConfig->new();
+    my $cfg = TeXDown::TConfig->new;
 
     # Set something...
 
@@ -133,7 +133,7 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg = TeXDown::TConfig->new();
+our $cfg = TeXDown::TConfig->new();
 
 $cfg->load($INI);
 
@@ -162,7 +162,6 @@ has cfg => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 

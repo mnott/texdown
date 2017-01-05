@@ -12,10 +12,9 @@ This class holds the handler for a Scrivx file.
 
 You can use it like so:
 
-    # Initialize, or rather, reuse from elsewhere...; $cfg
-    # would be an instance of TeXDown::TConfig
+    # Initialize, or rather, reuse from elsewhere...
 
-    my $parser = TeXDown::Scrivener::TScrivener->new( cfg => $cfg );
+    my $parser = TeXDown::Scrivener::TScrivener->new;
 
 =head1 METHODS
 
@@ -116,7 +115,7 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
@@ -125,18 +124,11 @@ $cfg->load($INI);
 =cut
 
 
-has cfg => (
-    is   => 'rw',
-    isa  => 'TeXDown::TConfig',
-    lazy => 0,
-);
-
 has project => (
     is   => 'rw',
     isa  => 'TeXDown::Scrivener::TProject',
     lazy => 0,
 );
-
 
 
 =begin testing Construct
@@ -150,7 +142,6 @@ has project => (
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
     $self->log->trace("Instantiated TScrivener");
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 sub load {
@@ -160,7 +151,7 @@ sub load {
 
     my $doc = XML::LibXML->load_xml( location => $file );
 
-    $self->project( TeXDown::Scrivener::TProject->new( cfg => $self->cfg ) );
+    $self->project( TeXDown::Scrivener::TProject->new );
 
     $self->project->load($doc);
 }

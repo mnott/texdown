@@ -72,11 +72,11 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
-my $resolver = TeXDown::TFileResolver->new ( cfg => $cfg );
+my $resolver = TeXDown::TFileResolver->new;
 
 
 

@@ -12,10 +12,9 @@ This class holds the Project of a Scrivx file.
 
 You can use it like so:
 
-    # Initialize, or rather, reuse from elsewhere...; $cfg
-    # would be an instance of TeXDown::TConfig
+    # Initialize, or rather, reuse from elsewhere...
 
-    my $parser = TeXDown::Scrivener::TProject->new( cfg => $cfg );
+    my $parser = TeXDown::Scrivener::TProject->new;
 
 =head1 METHODS
 
@@ -116,20 +115,13 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
 =end testing
 
 =cut
-
-
-has cfg => (
-    is   => 'rw',
-    isa  => 'TeXDown::TConfig',
-    lazy => 0,
-);
 
 has binders => (
     traits  => ['Array'],
@@ -150,7 +142,6 @@ has binders => (
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
     $self->log->trace("Instantiated TProject");
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 sub load {
@@ -161,7 +152,7 @@ sub load {
     my @xml_binders = $doc->findnodes('/ScrivenerProject/Binder');
 
     foreach my $xml_binder (@xml_binders) {
-        my $binder = TeXDown::Scrivener::TBinder->new( cfg => $self->cfg );
+        my $binder = TeXDown::Scrivener::TBinder->new;
         $binder->load($xml_binder);
         push( @{ $self->binders }, $binder );
     }

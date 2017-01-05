@@ -12,10 +12,9 @@ This class holds the Binder of a Scrivx file.
 
 You can use it like so:
 
-    # Initialize, or rather, reuse from elsewhere...; $cfg
-    # would be an instance of TeXDown::TConfig
+    # Initialize, or rather, reuse from elsewhere...
 
-    my $parser = TeXDown::Scrivener::TBinder->new( cfg => $cfg );
+    my $parser = TeXDown::Scrivener::TBinder->new;
 
 =head1 METHODS
 
@@ -113,20 +112,13 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
 =end testing
 
 =cut
-
-
-has cfg => (
-    is   => 'rw',
-    isa  => 'TeXDown::TConfig',
-    lazy => 0,
-);
 
 has binderitems => (
     traits  => ['Array'],
@@ -166,7 +158,6 @@ has binderitems_by_id => (
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
     $self->log->trace("Instantiated TBinder");
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 sub load {
@@ -178,7 +169,6 @@ sub load {
 
     foreach my $xml_binderitem (@xml_binderitems) {
         my $binderitem = TeXDown::Scrivener::TBinderItem->new(
-            cfg    => $self->cfg,
             binder => $self
         );
         $binderitem->load($xml_binderitem);
@@ -241,9 +231,9 @@ sub parse {
 
     my $binderitems = $self->binderitems;
 
-    my $result = TeXDown::Scrivener::TBinder->new( cfg => $self->cfg );
+    my $result = TeXDown::Scrivener::TBinder->new;
 
-    my @projects = @{ $self->cfg->get( 'p', { 'as_array' => 1 } ) };
+    my @projects = @{ $::cfg->get( 'p', { 'as_array' => 1 } ) };
 
     foreach my $project (@projects) {
         if ( $project =~ "^/.*" ) {

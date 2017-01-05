@@ -12,11 +12,10 @@ This class provides for the main program routine of TeXDown.
 
 You can use it like so:
 
-    # Initialize, or rather, reuse from elsewhere...; $cfg
-    # would be an instance of TeXDown::TConfig
+    # Initialize, or rather, reuse from elsewhere...
 
-    my $texdown = TeXDown::TMain->new( cfg => $cfg );
-    $texdown->run();
+    my $texdown = TeXDown::TMain->new;
+    $texdown->run;
 
 See L<"run"> for more description.
 
@@ -141,20 +140,13 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
 =end testing
 
 =cut
-
-
-has cfg => (
-    is   => 'rw',
-    isa  => 'TeXDown::TConfig',
-    lazy => 0,
-);
 
 
 =begin testing Construct
@@ -167,7 +159,6 @@ has cfg => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 
@@ -183,16 +174,14 @@ sub run {
     my $self = shift;
     $self->log->trace( $self->t_as_string(@_) );
 
-    my $cfg = $self->cfg;
-
     #
     # Instantiate the File Resolver
     #
-    my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
+    my $resolver = TeXDown::TFileResolver->new;
 
 ARG:
     foreach my $arg (@_) {
-        $self->log->debug( "Start Configuration: " . pp( $cfg->describe() ) );
+        $self->log->debug( "Start Configuration: " . pp( $::cfg->describe() ) );
 
         #
         # Narrow down the projects that we have got on the
@@ -201,7 +190,7 @@ ARG:
         # as we did not yet load a configuration file.
         #
         my @projects
-            = @{ $cfg->get( "p", { 'as_array' => 1, 'condense' => 1 } ) };
+            = @{ $::cfg->get( "p", { 'as_array' => 1, 'condense' => 1 } ) };
 
         #
         # If we did not specify any project, let's
@@ -219,7 +208,7 @@ ARG:
 
             push @projects, $p;
 
-            $cfg->set( "p", \@projects );
+            $::cfg->set( "p", \@projects );
         }
 
 
@@ -255,27 +244,27 @@ ARG:
                 # case roilr.
                 #
                 if (   @projects > 0
-                    && $cfg->contains_key("c")
-                    && $cfg->get("c") eq "" )
+                    && $::cfg->contains_key("c")
+                    && $::cfg->get("c") eq "" )
                 {
                     if ( -f "$dir/../$project.ini" ) {
                         #
                         # Save configuration file setting
                         #
-                        my $c_back = $cfg->get("c");
+                        my $c_back = $::cfg->get("c");
 
-                        $cfg->set( "c", "$dir/../$project.ini" );
+                        $::cfg->set( "c", "$dir/../$project.ini" );
 
                         my $cfgvar = "";
                         my $netcfg = "";
-                        if ( $cfg->contains_key("c") && $cfg->get("c") ne "" )
+                        if ( $::cfg->contains_key("c") && $::cfg->get("c") ne "" )
                         {
-                            $cfg->load();
-                            $cfg->set( "scriv",  $dir );
-                            $cfg->set( "scrivx", $file );
-                            $cfgvar = "\nini : " . $cfg->get("c");
+                            $::cfg->load();
+                            $::cfg->set( "scriv",  $dir );
+                            $::cfg->set( "scrivx", $file );
+                            $cfgvar = "\nini : " . $::cfg->get("c");
                             $netcfg = "Final Configuration: "
-                                . pp( $cfg->describe() );
+                                . pp( $::cfg->describe() );
                         }
                         $self->log->info(
                             "[1] Running with configuration file: $cfgvar \ndir : $dir \nfile: $file"
@@ -291,7 +280,7 @@ ARG:
                         #
                         # Restore configuration file setting
                         #
-                        $cfg->set( "c", $c_back );
+                        $::cfg->set( "c", $c_back );
 
                         next ARG;
                     }
@@ -311,20 +300,20 @@ ARG:
                 #
                 my $cfgvar = "";
                 my $netcfg = "";
-                if ( $cfg->contains_key("c") && $cfg->get("c") ne "" ) {
-                    $cfg->load();
-                    $cfg->set( "scriv",  $dir );
-                    $cfg->set( "scrivx", $file );
-                    $cfgvar = "configuring " . $cfg->get("c");
+                if ( $::cfg->contains_key("c") && $::cfg->get("c") ne "" ) {
+                    $::cfg->load();
+                    $::cfg->set( "scriv",  $dir );
+                    $::cfg->set( "scrivx", $file );
+                    $cfgvar = "configuring " . $::cfg->get("c");
                     $netcfg
-                        = "Final Configuration: " . pp( $cfg->describe() );
+                        = "Final Configuration: " . pp( $::cfg->describe() );
                 }
                 else {
-                    $cfg->set( "scriv",  $dir );
-                    $cfg->set( "scrivx", $file );
+                    $::cfg->set( "scriv",  $dir );
+                    $::cfg->set( "scrivx", $file );
                     $cfgvar = "without configuration file: ";
                     $netcfg
-                        = "Final Configuration: " . pp( $cfg->describe() );
+                        = "Final Configuration: " . pp( $::cfg->describe() );
                 }
                 $self->log->info(
                     "[2] Running $cfgvar \ndir : $dir \nfile: $file");
@@ -346,20 +335,20 @@ ARG:
                 #
                 my $cfgvar = "";
                 my $netcfg = "";
-                if ( $cfg->contains_key("c") && $cfg->get("c") ne "" ) {
-                    $cfg->load();
-                    $cfg->set( "scriv",  $dir );
-                    $cfg->set( "scrivx", $file );
-                    $cfgvar = "configuring " . $cfg->get("c");
+                if ( $::cfg->contains_key("c") && $::cfg->get("c") ne "" ) {
+                    $::cfg->load();
+                    $::cfg->set( "scriv",  $dir );
+                    $::cfg->set( "scrivx", $file );
+                    $cfgvar = "configuring " . $::cfg->get("c");
                     $netcfg
-                        = "Final Configuration: " . pp( $cfg->describe() );
+                        = "Final Configuration: " . pp( $::cfg->describe() );
                 }
                 else {
-                    $cfg->set( "scriv",  $dir );
-                    $cfg->set( "scrivx", $file );
+                    $::cfg->set( "scriv",  $dir );
+                    $::cfg->set( "scrivx", $file );
                     $cfgvar = "without configuration file: ";
                     $netcfg
-                        = "Final Configuration: " . pp( $cfg->describe() );
+                        = "Final Configuration: " . pp( $::cfg->describe() );
                 }
                 $self->log->info(
                     "[3] Running on plain text $cfgvar \ndir : $dir \nfile: $file"
@@ -378,11 +367,10 @@ ARG:
 
 sub load_scrivx {
     my ( $self, $dir, $file, $arg_ref ) = @_;
-    my $cfg = $self->cfg;
 
     $self->log->trace( $self->t_as_string( $dir, $file, $arg_ref ) );
 
-    my $scrivener = TeXDown::Scrivener::TScrivener->new( cfg => $cfg );
+    my $scrivener = TeXDown::Scrivener::TScrivener->new;
     $scrivener->load( $dir, $file );
 
     return $scrivener;
@@ -391,7 +379,7 @@ sub load_scrivx {
 sub describe {
     my ($self) = @_;
 
-    return $self->cfg;
+    return $::cfg;
 }
 
 sub dump {

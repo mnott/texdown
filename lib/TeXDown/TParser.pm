@@ -15,7 +15,7 @@ You can use it like so:
     # Initialize, or rather, reuse from elsewhere...; $cfg
     # would be an instance of TeXDown::TConfig
 
-    my $parser = TeXDown::TParser->new( cfg => $cfg );
+    my $parser = TeXDown::TParser->new;
 
 
 See L<"parse"> for more description.
@@ -117,24 +117,17 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
-my $parser = TeXDown::TParser->new ( cfg => $cfg );
+my $parser = TeXDown::TParser->new;
 
-$parser->load();
+$parser->load;
 
 =end testing
 
 =cut
-
-
-has cfg => (
-    is   => 'rw',
-    isa  => 'TeXDown::TConfig',
-    lazy => 0,
-);
 
 has parser => (
     is      => 'rw',
@@ -157,33 +150,30 @@ has 'currentitem' => ( is => 'rw', isa => 'Str', default => "" );
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 sub load {
     my ( $self, $parser, $arg_ref ) = @_;
 
-    my $cfg = $self->cfg;
-
     # If we have been given a parser location, we use
     # that one
     if ( defined $parser && $parser ne "" ) {
-        $cfg->set( "parser", $parser );
+        $::cfg->set( "parser", $parser );
     }
     else {
-        if ( $cfg->contains_key("parser") ) {
-            $parser = $cfg->get("parser");
+        if ( $::cfg->contains_key("parser") ) {
+            $parser = $::cfg->get("parser");
         }
         else {
             $parser = "parser.cfg";
-            $cfg->set( "parser", $parser );
+            $::cfg->set( "parser", $parser );
         }
     }
 
     #
     # Resolve the Parser File
     #
-    my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
+    my $resolver = TeXDown::TFileResolver->new;
     my ( $d, $parserfile ) = $resolver->resolve_files($parser);
 
     #

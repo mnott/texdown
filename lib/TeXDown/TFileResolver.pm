@@ -14,10 +14,9 @@ that resolves the location and name of a file.
 
 You can use it like so:
 
-    # Initialize, or rather, reuse from elsewhere...; $cfg
-    # would be an instance of TeXDown::TConfig
+    # Initialize, or rather, reuse from elsewhere...
 
-    my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
+    my $resolver = TeXDown::TFileResolver->new;
 
     # If we did not specify a project, let's attemt to resolve it
 
@@ -120,22 +119,15 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
-my $resolver = TeXDown::TFileResolver->new ( cfg => $cfg );
+my $resolver = TeXDown::TFileResolver->new;
 
 =end testing
 
 =cut
-
-
-has cfg => (
-    is   => 'rw',
-    isa  => 'TeXDown::TConfig',
-    lazy => 0,
-);
 
 
 =begin testing Construct
@@ -148,7 +140,6 @@ has cfg => (
 
 sub BUILD {
     my ( $self, $arg_ref ) = @_;
-    $self->cfg( $arg_ref->{cfg} ) if exists $arg_ref->{cfg};
 }
 
 
@@ -180,8 +171,6 @@ Returns:
 sub resolve_files {
     my ( $self, $arg, $arg_ref ) = @_;
     $self->log->trace( $self->t_as_string( $arg, $arg_ref ) );
-
-    my $cfg = $self->cfg;
 
     if ( -e "$arg" || -e "$arg.scriv" ) {
         my ( $fname, $fpath, $fsuffix ) = fileparse( $arg, qr/\.[^.]*/ );
@@ -234,7 +223,7 @@ sub resolve_files {
 sub describe {
     my ($self) = @_;
 
-    return $self->cfg;
+    return $::cfg;
 }
 
 sub dump {

@@ -72,13 +72,13 @@ print STDERR "\n";
 #
 ###################################################
 
-my $cfg      = TeXDown::TConfig->new();
+our $cfg      = TeXDown::TConfig->new;
 
 $cfg->load($INI);
 
-my $parser = TeXDown::TParser->new ( cfg => $cfg );
+my $parser = TeXDown::TParser->new;
 
-$parser->load();
+$parser->load;
 
 
 
