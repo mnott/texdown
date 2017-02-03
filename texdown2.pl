@@ -69,6 +69,7 @@ use lib dirname( Cwd::abs_path $0) . '/lib';
 
 use TeXDown::TConfig;
 use TeXDown::TMain;
+use TeXDown::TParser;
 
 ###################################################
 #
@@ -108,6 +109,11 @@ use Getopt::Long;
 our $cfg = TeXDown::TConfig->new;
 
 #
+# Instantiate the Parser
+#
+our $parser  = TeXDown::TParser->new;
+
+#
 # Get the command line options
 #
 GetOptions(
@@ -142,7 +148,15 @@ if ($cfg->get("doc")) {
 #
 ###################################################
 
-my $texdown = TeXDown::TMain->new( cfg => $cfg );
+#
+# Load the Parser
+#
+$parser->load();
+
+#
+# Load the Main Program
+#
+my $texdown = TeXDown::TMain->new;
 
 #
 # Run or Filter?

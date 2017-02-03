@@ -41,6 +41,8 @@ use Pod::Usage;
 use File::Basename;
 use Cwd qw(abs_path);
 
+use RTF::TEXT::Converter;
+
 use Moose;
 with 'MooseX::Log::Log4perl';
 
@@ -189,7 +191,7 @@ sub load {
 
     if ( !defined $parserfile || !-f $parserfile ) {
         pod2usage(
-            {   -message => "\nParser Configuration file $parser not found\n",
+            {   -message => "\nParser Configuration file $parserfile not found\n",
                 -exitval => 2,
             }
         );
@@ -479,7 +481,7 @@ sub itemize {
         }
         elsif ( $self->itemlevel == 1 && $self->currentitem eq "m" ) {
             # 4 => E4
-            $self->content = "\\begin{itemize}\n\t\t\\item $content";
+            $content = "\\begin{itemize}\n\t\t\\item $content";
             $self->itemlevel(2);
             $self->currentitem("t");
         }
@@ -540,7 +542,7 @@ sub rtf2txt {
     $self->log->trace( $self->t_as_string($arg_ref) );
 
     if ( -f "$file.comments" ) {
-        return commentsParser($file);
+        return $self->commentsParser($file);
     }
 
     my $result;

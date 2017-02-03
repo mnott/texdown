@@ -245,9 +245,9 @@ sub print {
     my $parent = $arg_ref->{parent};
     my $path   = $arg_ref->{path};
     my $level  = $arg_ref->{level};
-    my $dir    = $::cfg->get("dir");
+    my $dir    = $::cfg->get("scriv");
 
-    $self->log->trace("+ Print: " . $parent->title);
+    $self->log->trace( "+ Print: " . $parent->title );
 
     my $parentTitle = "$path/" . $parent->title;
     my $docId       = $parent->id;
@@ -255,8 +255,12 @@ sub print {
     my $docTitle    = $parent->title;
     my $inc         = $parent->inc;
 
-    my $all  = $::cfg->get("all");
-    my $list = $::cfg->get("l");
+    my $all       = $::cfg->get("all");
+    my $list      = $::cfg->get("l");
+    my $debug     = $::cfg->get("v");
+    my $search    = $::cfg->get("s");
+    my $dontparse = $::cfg->get("n");
+    my $parser    = $::parser;
 
     #
     # If we are restricting by the Scrivener metadata field
@@ -276,7 +280,46 @@ sub print {
             print "$printline\n";
         }
         else {
-            $self->log->trace("We will be printing content here.");
+            my $rtf = "$dir/Files/Docs/$docId.rtf";
+
+            if ( -e "$rtf" ) {
+                my $line = "";
+                if ($debug) {
+                    $line
+                        = "\n\n<!--\n%\n%\n% "
+                        . $docId . " -> "
+                        . $docTitle
+                        . "\n%\n%\n-->\n";
+                }
+
+                my $curline = $parser->rtf2txt("$dir/Files/Docs/$docId");
+
+                #
+                # If we are asked to search for something, we intepret the
+                # search string as (potential) regex, and search the files,
+                # but don't do anything else.
+                #
+                if ( defined $search ) {
+                    $curline = $parser->parse($curline) unless $dontparse;
+                    if ( $curline =~ m/(.{0,30})($search)(.{0,30})/m ) {
+                        my $printline = sprintf(
+                            "[%8d] %s: %s%s%s",
+                            $docId, $parentTitle,
+                            colored( $1, 'green' ),
+                            colored( $2, 'red' ),
+                            colored( $3, 'green' )
+                        );
+                        print "$printline\n";
+                    }
+                }
+                else {
+                    $line .= $curline;
+
+                    $line = $parser->parse($line) unless $dontparse;
+                    print $line . "\n";
+                }
+            }
+
 
         }
     }
@@ -298,6 +341,18 @@ sub print {
     }
 }
 
+
+sub get_child {
+    my ( $self, $title ) = @_;
+    my $binderitems = $self->binderitems;
+
+    foreach my $binderitem (@$binderitems) {
+        if ( $binderitem->title eq $title ) {
+            return $binderitem;
+        }
+    }
+    return 0;
+}
 
 
 
