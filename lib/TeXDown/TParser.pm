@@ -328,7 +328,6 @@ sub parse {
 #
 sub nospace {
     my ( $self, $str, $arg_ref ) = @_;
-    $self->log->trace( $self->t_as_string($arg_ref) );
 
     $str =~ s/ /-/g;
 
@@ -345,7 +344,6 @@ sub nospace {
 #
 sub nomarkdown {
     my ( $self, $str, $arg_ref ) = @_;
-    $self->log->trace( $self->t_as_string($arg_ref) );
 
     $str =~ s/\[[^\]]*\]//g;
 

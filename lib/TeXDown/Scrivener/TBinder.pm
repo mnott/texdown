@@ -136,6 +136,13 @@ has binderitems_by_title => (
     lazy    => 0,
 );
 
+has binderitems_by_path => (
+    traits  => ['Hash'],
+    is      => 'rw',
+    isa     => 'HashRef[TeXDown::Scrivener::TBinderItem]',
+    default => sub { {} },
+    lazy    => 0,
+);
 
 has binderitems_by_id => (
     traits  => ['Hash'],
@@ -216,6 +223,13 @@ sub track {
     my %hids = %{ $self->binderitems_by_id };
     $hids{ $binderitem->id } = $binderitem;
     $self->binderitems_by_id( \%hids );
+
+    #
+    # Track by Paths (also unique)
+    #
+    my %hpaths = %{ $self->binderitems_by_path };
+    $hpaths{ $binderitem->path } = $binderitem;
+    $self->binderitems_by_path( \%hpaths );
 }
 
 #
@@ -224,13 +238,32 @@ sub track {
 # output.
 #
 sub parse {
-   my ($self) = @_;
+    my ($self) = @_;
 
     $self->log->trace("> Parse process");
 
     my $binderitems = $self->binderitems;
 
-    my $result = TeXDown::Scrivener::TBinder->new;
+
+    #
+    # If we are asked to retrieve a path for adocument id, we do only that.
+    #
+    my @showid = @{ $::cfg->get( 'i', { 'as_array' => 1 } ) };
+
+    if ( @showid > 0 ) {
+        $::cfg->set( "l", 1 );
+
+        foreach my $id (@showid) {
+            my %binderitems = %{ $self->binderitems_by_id };
+
+            if ( exists $binderitems{$id} ) {
+                my $binderitem = $binderitems{$id};
+                say $binderitem->path;
+            }
+        }
+        exit 0;
+    }
+
 
     my @projects = @{ $::cfg->get( 'p', { 'as_array' => 1 } ) };
 

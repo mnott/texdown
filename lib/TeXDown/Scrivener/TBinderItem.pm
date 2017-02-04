@@ -37,6 +37,7 @@ use File::Basename;
 use Cwd qw(abs_path);
 
 use XML::LibXML;
+use Term::ANSIColor qw( colored );
 
 use Moose;
 with 'MooseX::Log::Log4perl';
@@ -146,6 +147,11 @@ has id => (
 );
 
 
+has path => (
+    is  => 'rw',
+    isa => 'Str',
+);
+
 has title => (
     is  => 'rw',
     isa => 'Str',
@@ -185,6 +191,13 @@ sub BUILD {
     else {
         $self->level(1);
     }
+
+    if ( exists $arg_ref->{path} ) {
+        $self->path( $arg_ref->{path} );
+    }
+    else {
+        $self->path("");
+    }
 }
 
 sub load {
@@ -204,6 +217,7 @@ sub load {
     $self->uuid($uuid);
     $self->type($type);
     $self->inc( "Yes" eq $inc );
+    $self->path( $self->path . "/" . $self->title );
 
     my $indent = "  " x $level;
 
@@ -217,6 +231,7 @@ sub load {
         my $binderitem = TeXDown::Scrivener::TBinderItem->new(
             level  => ++$level,
             binder => $self->binder,
+            path   => $self->path,
         );
         $binderitem->load($xml_binderitem);
         $self->add($binderitem);
@@ -242,10 +257,10 @@ sub add {
 sub print {
     my ( $self, $arg_ref ) = @_;
 
-    my $parent = $arg_ref->{parent};
-    my $path   = $arg_ref->{path};
-    my $level  = $arg_ref->{level};
-    my $dir    = $::cfg->get("scriv");
+    my $parent       = $arg_ref->{parent};
+    my $path         = $arg_ref->{path};
+    my $level        = $arg_ref->{level};
+    my $dir          = $::cfg->get("scriv");
 
     $self->log->trace( "+ Print: " . $parent->title );
 
@@ -255,7 +270,7 @@ sub print {
     my $docTitle    = $parent->title;
     my $inc         = $parent->inc;
 
-    my $all       = $::cfg->get("all");
+    my $all       = $::cfg->get("a");
     my $list      = $::cfg->get("l");
     my $debug     = $::cfg->get("v");
     my $search    = $::cfg->get("s");
@@ -275,9 +290,21 @@ sub print {
     #
     if ( $docType eq "Text" ) {
         if ($list) {
-            my $printline = sprintf( "[%8d] %s", $docId, $parentTitle );
+            if ( defined $search ) {
+                if ( $parentTitle =~ m/(.*)($search)(.*)/mi ) {
+                    my $printline = sprintf( "[%8d] %s: %s%s",
+                        $docId,
+                        colored( $1, 'green' ),
+                        colored( $2, 'red' ),
+                        colored( $3, 'green' ) );
+                    print "$printline\n";
+                }
+            }
+            else {
+                my $printline = sprintf( "[%8d] %s", $docId, $parentTitle );
 
-            print "$printline\n";
+                print "$printline\n";
+            }
         }
         else {
             my $rtf = "$dir/Files/Docs/$docId.rtf";
@@ -301,7 +328,7 @@ sub print {
                 #
                 if ( defined $search ) {
                     $curline = $parser->parse($curline) unless $dontparse;
-                    if ( $curline =~ m/(.{0,30})($search)(.{0,30})/m ) {
+                    if ( $curline =~ m/(.{0,30})($search)(.{0,30})/mi ) {
                         my $printline = sprintf(
                             "[%8d] %s: %s%s%s",
                             $docId, $parentTitle,

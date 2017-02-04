@@ -111,7 +111,7 @@ our $cfg = TeXDown::TConfig->new;
 #
 # Instantiate the Parser
 #
-our $parser  = TeXDown::TParser->new;
+our $parser = TeXDown::TParser->new;
 
 #
 # Get the command line options
@@ -121,10 +121,11 @@ GetOptions(
     'i|id:s{,}'         => sub { $cfg->append(@_); },
     'l|list'            => sub { $cfg->append(@_); },
     'p|project:s{,}'    => sub { $cfg->append(@_); },
+    'a|all'             => sub { $cfg->append(@_); },
     's|search:s'        => sub { $cfg->append(@_); },
-    'parser:s'          => sub { $cfg->append(@_); },
     'n|no|nothing'      => sub { $cfg->append(@_); },
     'v|verbose'         => sub { $cfg->append(@_); },
+    'parser:s'          => sub { $cfg->append(@_); },
     'doc|documentation' => sub { $cfg->append(@_); },
     'h|?|help'          => sub { $cfg->append(@_); },
     'man'               => sub { $cfg->append(@_); },
@@ -136,9 +137,9 @@ pod2usage( -exitval => 0, -verbose => 2 ) if $cfg->contains_key("m");
 # Shortcut for myself to recreate the documentation
 # without having to remember how it was done.
 #
-if ($cfg->get("doc")) {
-  system("$pod2md < $0 >README.md");
-  exit 0;
+if ( $cfg->get("doc") ) {
+    system("$pod2md < $0 >README.md");
+    exit 0;
 }
 
 
@@ -161,62 +162,27 @@ my $texdown = TeXDown::TMain->new;
 #
 # Run or Filter?
 #
-#if ( -t STDIN ) {
+if ( -t STDIN ) {
     if ( @ARGV > 0 ) {
         $texdown->run(@ARGV);
     }
     else {
         pod2usage(2);
     }
-#}
-#else {
-    #runAsFilter();
-#}
+}
+else {
+    while (<STDIN>) {
+        my $line = $_;
+        $line = $parser->parse($line) unless $cfg->get("n");
+        print $line;
+    }
+}
 
 
 
 $log->trace("Done.");
 
-
-# Getting location of some file:
-#
-# my $resolver = TeXDown::TFileResolver->new( cfg => $cfg );
-#
-# my ( $dir, $file, $scriv ) = $resolver->resolve_files("../doof.tex");
-#
-# say "dir  : $dir\nfile : $file\nscriv: $scriv";
-
-# Sample Parsing:
-#
-# my $parser = TeXDown::TParser->new( cfg => $cfg );
-#
-# $parser->load();
-#
-# print $parser->parse("###[Coakes, Smith, and Alwis (2011)] [t#Coakes:2011aa]")
-#    . "\n";
-# print $parser->parse("## bla blub blubber") . "\n";
-
-
 exit 0;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -305,6 +271,7 @@ Command line parameters can take any order on the command line.
 
    Other Options:
 
+   -parser          Use a specific parser.cfg
    -documentation   Recreate the README.md (needs pod2markdown)
 
 
@@ -421,6 +388,7 @@ file:
   ; TeXDown Configuration File
   ;
   [GLOBAL]
+  ; parser=parser.cfg
 
   [Dissertation]
   p=Dissertation
@@ -433,7 +401,7 @@ file:
   ; ROI - Literature Review
   p=/LaTeX/Article/Frontmatter, "ROI - Literature Review", /LaTeX/Article/Backmatter
 
-Let's assume we have saved this file as Dissertation.cfg, into
+Let's assume we have saved this file as Dissertation.ini, into
 the same directory where we are also having our Scrivener directory
 Dissertation.scriv. The above file works as follows: You can specify
 some variables with "scopes" (like, "rd"), and this will serve as an
@@ -449,7 +417,7 @@ course remove the -l and pipe the output somewhere):
 you are not even saying which project or which configuration file to
 use. So what B<TeXDown> will do is to assume that the configuration
 file lives in the same directory that your Dissertation.scriv is in,
-and is named Dissertation.cfg. It will also assume that you expect to
+and is named Dissertation.ini. It will also assume that you expect to
 have a scope [Dissertation] within that file, and within that section,
 you have a project definition like p=something.
 
@@ -465,9 +433,9 @@ is taken from that scope.
 To be even more specific, you can explicitly say which configuration
 file to use:
 
-  ./texdown.pl Dissertation -l -c Dissertation.cfg
+  ./texdown.pl Dissertation -l -c Dissertation.ini
 
-This is going to look for the Dissertation.cfg configuration file,
+This is going to look for the Dissertation.ini configuration file,
 in some location (you can now give a complete path to it), and since
 we yet forgot again, which project to actually use, it is going to
 default to the Dissertation scope in that file.
@@ -475,14 +443,14 @@ default to the Dissertation scope in that file.
 Let's be really specific and also say, which project to use with
 that configuration file:
 
-  ./texdown.pl Dissertation -l -c Dissertation.cfg -p roilr
+  ./texdown.pl Dissertation -l -c Dissertation.ini -p roilr
 
 Of course, you can now be really crazy and run a number of projects
 in a row:
 
   ./texdown.pl Dissertation -l -c -p roilr rd Dissertation
 
-This will tell B<TeXDown>, again, to use Dissertation.cfg out of the
+This will tell B<TeXDown>, again, to use Dissertation.ini out of the
 same directory where the referred to Dissertation.scriv lives, and to
 then process the scopes roilr, rd, and Dissertation, in that order.
 

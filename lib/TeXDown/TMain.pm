@@ -364,7 +364,6 @@ ARG:
     }    # foreach my $arg (@_)
 }
 
-
 sub load_scrivx {
     my ( $self, $dir, $file, $arg_ref ) = @_;
 
