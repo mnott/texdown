@@ -20,10 +20,10 @@ TeXDown - Markdown for LaTeX and Instrument Scrivener
 
 =head1 VERSION
 
-Version 0.0.1
+Version 0.0.2
 
 =head1 LICENCE AND COPYRIGHT
-Copyright (c) 2016 Matthias Nott (mnott (at) mnsoft.org).
+Copyright (c) 2016 - 2017 Matthias Nott (mnott (at) mnsoft.org).
 
 Licensed under WTFPL.
 
@@ -131,7 +131,8 @@ GetOptions(
     'man'               => sub { $cfg->append(@_); },
 ) or pod2usage(2);
 pod2usage(1) if $cfg->contains_key("h");
-pod2usage( -exitval => 0, -verbose => 2 ) if $cfg->contains_key("m");
+
+pod2usage( -exitval => 0, -verbose => 2 ) if $cfg->contains_key("man");
 
 #
 # Shortcut for myself to recreate the documentation
@@ -316,11 +317,11 @@ If you want to process multiple object trees, just use this
 command line argument multiple times, or pass multiple arguments
 to it. For example, you can use
 
-  ./texdown.pl Dissertation -p FrontMatter Content BackMatter
+  ./texdown.pl Dissertation -p Frontmatter Content Backmatter
 
 or
 
-  ./texdown.pl Dissertation -p FrontMatter -p Content -p BackMatter
+  ./texdown.pl Dissertation -p Frontmatter -p Content -p Backmatter
 
 Each object name can be either an actual name of an object,
 so for example, if you have an object
@@ -339,7 +340,7 @@ use absolute path names. So assume you have some folder that contains
 your front matter and back matter for articles, and then you have
 some literature folder somewhere, you can do this:
 
-  ./texdown.pl Dissertation -p /LaTeX/Articles/FrontMatter /LaTeX/Articles/BackMatter Literature
+  ./texdown.pl Dissertation -p /LaTeX/Articles/Frontmatter Literature /LaTeX/Articles/Backmatter
 
 As a side effect, if you want to print out the entire object hierarchy
 of your scrivener database, you can do this:

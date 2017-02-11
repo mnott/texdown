@@ -257,10 +257,10 @@ sub add {
 sub print {
     my ( $self, $arg_ref ) = @_;
 
-    my $parent       = $arg_ref->{parent};
-    my $path         = $arg_ref->{path};
-    my $level        = $arg_ref->{level};
-    my $dir          = $::cfg->get("scriv");
+    my $parent = $arg_ref->{parent};
+    my $path   = $arg_ref->{path};
+    my $level  = $arg_ref->{level};
+    my $dir    = $::cfg->get("scriv");
 
     $self->log->trace( "+ Print: " . $parent->title );
 
@@ -381,6 +381,12 @@ sub get_child {
     return 0;
 }
 
+
+sub size {
+    my ($self) = @_;
+
+    return scalar @{ $self->binderitems };
+}
 
 
 sub describe {

@@ -298,7 +298,10 @@ PROJECT:
             # return an array of binder items and check
             # whether it is empty).
             #
-            my $binderitem = $self->get_child( $locations[0] );
+            my $binderitem
+                = ( @locations == 0 )
+                ? $self                               # were given no locations => print self
+                : $self->get_child( $locations[0] );  # print by location
 
             next PROJECT if !$binderitem;
 
@@ -306,6 +309,7 @@ PROJECT:
                 my $location = $locations[$i];
 
                 $binderitem = $binderitem->get_child($location);
+
                 next PROJECT if !$binderitem;
             }
 
@@ -360,6 +364,21 @@ PROJECT:
 }
 
 
+sub print {
+    my ($self) = @_;
+    my $binderitems = $self->binderitems;
+
+    foreach my $binderitem (@$binderitems) {
+        $binderitem->print(
+            {   parent => $binderitem,
+                path   => "",
+                level  => 0,
+            }
+
+        );
+    }
+}
+
 
 sub by_title {
     my ( $self, $title ) = @_;
@@ -381,11 +400,10 @@ sub get_child {
     my $binderitems = $self->binderitems;
 
     foreach my $binderitem (@$binderitems) {
-        if ( $binderitem->title eq $title ) {
+        if ( !defined $title || $binderitem->title eq $title ) {
             return $binderitem;
         }
     }
-
 
     return 0;
 }
