@@ -545,7 +545,20 @@ sub rtf2txt {
 
     my $result;
     my $rtfparser = new RTF::TEXT::Converter( output => \$result );
-    $rtfparser->parse_stream("$file.rtf");
+
+    #
+    # Slurp in rtf
+    #
+    open FILE, "<$file.rtf";
+    my $rtf = do { local $/; <FILE> };
+
+    #
+    # Parse out the font table as it keeps adding font names to our
+    # output.
+    #
+    $rtf =~ s!^\{\\fonttbl.*?\}!!gsm;
+
+    $rtfparser->parse_string($rtf);
     return $result;
 }
 
@@ -616,12 +629,17 @@ sub commentsParser {
     }
 
     #
+    # Parse out the font table as it keeps adding font names to our
+    # output.
+    #
+    $rtf =~ s!^\{\\fonttbl.*?\}!!gsm;
+
+    #
     # Parse the result
     #
     my $result;
     my $rtfparser = RTF::TEXT::Converter->new( output => \$result );
     $rtfparser->parse_string($rtf);
-
 
     return $result;
 }
