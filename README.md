@@ -4,10 +4,10 @@ TeXDown - Markdown for LaTeX and Instrument Scrivener
 
 # VERSION
 
-Version 0.0.1
+Version 0.0.2
 
 # LICENCE AND COPYRIGHT
-Copyright (c) 2016 Matthias Nott (mnott (at) mnsoft.org).
+Copyright (c) 2016 - 2017 Matthias Nott (mnott (at) mnsoft.org).
 
 Licensed under WTFPL.
 
@@ -83,6 +83,7 @@ Command line parameters can take any order on the command line.
 
       Other Options:
 
+      -parser          Use a specific parser.cfg
       -documentation   Recreate the README.md (needs pod2markdown)
 
 # OPTIONS
@@ -124,11 +125,11 @@ Command line parameters can take any order on the command line.
     command line argument multiple times, or pass multiple arguments
     to it. For example, you can use
 
-        ./texdown.pl Dissertation -p FrontMatter Content BackMatter
+        ./texdown.pl Dissertation -p Frontmatter Content Backmatter
 
     or
 
-        ./texdown.pl Dissertation -p FrontMatter -p Content -p BackMatter
+        ./texdown.pl Dissertation -p Frontmatter -p Content -p Backmatter
 
     Each object name can be either an actual name of an object,
     so for example, if you have an object
@@ -147,7 +148,7 @@ Command line parameters can take any order on the command line.
     your front matter and back matter for articles, and then you have
     some literature folder somewhere, you can do this:
 
-        ./texdown.pl Dissertation -p /LaTeX/Articles/FrontMatter /LaTeX/Articles/BackMatter Literature
+        ./texdown.pl Dissertation -p /LaTeX/Articles/Frontmatter Literature /LaTeX/Articles/Backmatter
 
     As a side effect, if you want to print out the entire object hierarchy
     of your scrivener database, you can do this:
@@ -196,6 +197,7 @@ Command line parameters can take any order on the command line.
         ; TeXDown Configuration File
         ;
         [GLOBAL]
+        ; parser=parser.cfg
 
         [Dissertation]
         p=Dissertation
@@ -208,7 +210,7 @@ Command line parameters can take any order on the command line.
         ; ROI - Literature Review
         p=/LaTeX/Article/Frontmatter, "ROI - Literature Review", /LaTeX/Article/Backmatter
 
-    Let's assume we have saved this file as Dissertation.cfg, into
+    Let's assume we have saved this file as Dissertation.ini, into
     the same directory where we are also having our Scrivener directory
     Dissertation.scriv. The above file works as follows: You can specify
     some variables with "scopes" (like, "rd"), and this will serve as an
@@ -224,7 +226,7 @@ Command line parameters can take any order on the command line.
     you are not even saying which project or which configuration file to
     use. So what **TeXDown** will do is to assume that the configuration
     file lives in the same directory that your Dissertation.scriv is in,
-    and is named Dissertation.cfg. It will also assume that you expect to
+    and is named Dissertation.ini. It will also assume that you expect to
     have a scope \[Dissertation\] within that file, and within that section,
     you have a project definition like p=something.
 
@@ -240,9 +242,9 @@ Command line parameters can take any order on the command line.
     To be even more specific, you can explicitly say which configuration
     file to use:
 
-        ./texdown.pl Dissertation -l -c Dissertation.cfg
+        ./texdown.pl Dissertation -l -c Dissertation.ini
 
-    This is going to look for the Dissertation.cfg configuration file,
+    This is going to look for the Dissertation.ini configuration file,
     in some location (you can now give a complete path to it), and since
     we yet forgot again, which project to actually use, it is going to
     default to the Dissertation scope in that file.
@@ -250,14 +252,14 @@ Command line parameters can take any order on the command line.
     Let's be really specific and also say, which project to use with
     that configuration file:
 
-        ./texdown.pl Dissertation -l -c Dissertation.cfg -p roilr
+        ./texdown.pl Dissertation -l -c Dissertation.ini -p roilr
 
     Of course, you can now be really crazy and run a number of projects
     in a row:
 
         ./texdown.pl Dissertation -l -c -p roilr rd Dissertation
 
-    This will tell **TeXDown**, again, to use Dissertation.cfg out of the
+    This will tell **TeXDown**, again, to use Dissertation.ini out of the
     same directory where the referred to Dissertation.scriv lives, and to
     then process the scopes roilr, rd, and Dissertation, in that order.
 
@@ -361,7 +363,9 @@ Put the script somewhere and make it executable:
 (Desktop is probably not the best place to put it, but just to
 make the point.) Also, make sure that you reference the right
 version of Perl. At the beginning of the script, you see a
-reference to /usr/bin/perl. Use, on the command line,
+reference to /usr/bin/env perl. This should normally work; if
+it does not find perl, you may want to replace it with the actual
+location of perl on your system. Use, on the command line,
 this command to find out where you actually have your Perl:
 
     which perl
