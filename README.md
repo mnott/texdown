@@ -1,5 +1,20 @@
 # NAME
 
+TeXDown - Markdown for LaTeX and Instrument Scrivener
+
+# VERSION
+
+Version 0.0.1
+
+# LICENCE AND COPYRIGHT
+Copyright (c) 2016 Matthias Nott (mnott (at) mnsoft.org).
+
+Licensed under WTFPL.
+
+# DEPENDENCIES
+
+# NAME
+
 TeXDown  -  Use Markdown with LaTeX, and particularly with Scrivener.
 
             The program was written for two reasons:
@@ -46,7 +61,7 @@ Command line parameters can take any order on the command line.
 
       -help            brief help message (alternatives: ?, -h)
       -man             full documentation (alternatives: -m)
-      -v               verbose (alternatives: -d, -debug, -verbose)
+      -d               debug (alternatives: -debug)
       -n               do not actually parse Markdown into LaTeX
                        (alternative: -no, -nothing)
 
@@ -79,6 +94,15 @@ Command line parameters can take any order on the command line.
 - **-man**
 
     Prints the manual page and exits.
+
+- **-d**
+
+    Print debug information to stderr. You can set the log level as
+    any of OFF, FATAL, ERROR, WARN, INFO, DEBUG, TRACE, ALL. If you
+    don't specify a log level, DEBUG is used. If you don't use the
+    parameter, whatever is specified in log4p.ini is used (probably
+    WARN, but of course you can change that). The more
+    you go from OFF to ALL, the more information you will get.
 
 - **-v**
 
@@ -144,20 +168,20 @@ Command line parameters can take any order on the command line.
 - **-a**
 
     Disrespect the Scrivener metadata field IncludeInCompilation, which
-    can be set from Scrivener. By default, we respect this metadata 
+    can be set from Scrivener. By default, we respect this metadata
     field. Since it can be set at every level, if
     we detect it to be unset at level n in the document tree, we will
     not follow down into the children of that tree, even if they have
-    it set. This allows us to easily exclude whole trees of content 
+    it set. This allows us to easily exclude whole trees of content
     from the compilation - except if we chose to include all nodes
     using the -a switch.
 
 - **-l**
 
     Rather than actually printing the parsed content, only print
-    the document IDs and titles that would have been included. 
+    the document IDs and titles that would have been included.
 
-    Those document IDs correspond to RTF files which you would find 
+    Those document IDs correspond to RTF files which you would find
     in the Files/Docs subdirectory; hence this option might be useful
     for you to understand which file corresponds to which Scrivener object.
 
@@ -172,14 +196,14 @@ Command line parameters can take any order on the command line.
         ; TeXDown Configuration File
         ;
         [GLOBAL]
-        
+
         [Dissertation]
         p=Dissertation
-        
+
         [rd]
         ; Research Design
         p=/LaTeX/Article/Frontmatter, "Research Design", /LaTeX/Article/Backmatter
-        
+
         [roilr]
         ; ROI - Literature Review
         p=/LaTeX/Article/Frontmatter, "ROI - Literature Review", /LaTeX/Article/Backmatter
@@ -357,7 +381,6 @@ on your system are listed at the top of **texdown.pl**:
     use Getopt::Long;
     use Pod::Usage;
     use File::Basename;
-    use Data::Dumper;
     use RTF::TEXT::Converter;
     use XML::LibXML;
     use Tie::IxHash;
@@ -429,7 +452,7 @@ the disk. Scrivener holds its files in a directory like
 
 So what **TeXDown** will do is that it will first detect whether
 a file given on the command line is actually a Scrivener database,
-then it will try to locate the **.scrivx** file within that, to 
+then it will try to locate the **.scrivx** file within that, to
 then parse it in order to find out the root folder that you wanted
 the processing to start at. It will then, one after another,
 try to locate the related rtf files, convert them to plain text,
@@ -514,7 +537,7 @@ becomes:
 
 \\part{This is a part}\\label{This-is-a-part}
 
-Likewise, for 
+Likewise, for
 
 \## Section
 
@@ -587,7 +610,7 @@ Citations are the strongest part of using Markdown over LaTeX.
 Consider this scenario:
 
     \citeauthor{Nott:2016} wrote about Markdown, that ``citations
-    are the strongest part of using Markdown over LaTeX.'' 
+    are the strongest part of using Markdown over LaTeX.''
     (\citeyear[20-30]{Nott:2016}) He also holds that using a simple
     Perl script, you can \emph{very much} simplify the problem
     \citep[ibd.]{Nott:2016}.
@@ -637,7 +660,7 @@ it using "year, parenthesis."
 
 #### Simple Page Ranges
 
-If you want to add page ranges to it, you add those in 
+If you want to add page ranges to it, you add those in
 round parentheses, to any of the above forms. So for example:
 
     (20-30)[yp#Nott:2016] => (\citeyear[20-30]{Nott:2016})
@@ -685,14 +708,14 @@ Finally, for emphasizing things, you can do this:
 
 Let's do a crazy thing: Use a two line **TeXDown** file:
 
-(As \[a#Nott:2016\] said, "TeXdown is quite easy." 
+(As \[a#Nott:2016\] said, "TeXdown is quite easy."
 (20)\[yp#Nott:2002\])\_\_\[a#Nott:2005\]  had \*\*already\*\* said:  "This is the \*\*right\*\* thing to do" (20--23, \*\*emphasis\*\* ours)\[ypi#Nott:2016\]\_\_\_\_Debatable.\_\_
 
 and parse it by **TeXDown**;
 
 cat crazy.tex | ./texdown.pl
 
-(As \\citeauthor{Nott:2016} said, \`\`TeXdown is quite easy.'' 
+(As \\citeauthor{Nott:2016} said, \`\`TeXdown is quite easy.''
 (\\citeyear\[20\]{Nott:2002}))\\footnote{\\citeauthor{Nott:2005} had \\emph{already} said: \`\`This is the \\emph{right} thing to do'' (20--23, \\emph{emphasis} ours)(\\citeyear\[ibd.\]{Nott:2016})}\\footnote{Debatable.}
 
 Agreed, both are probably not all that readable, but it makes
