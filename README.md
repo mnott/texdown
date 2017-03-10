@@ -358,7 +358,7 @@ Command line parameters can take any order on the command line.
 Put the script and its subdirectories somewhere and make it executable:
 
     mkdir ~/Desktop/texdown
-    cp -rav * ~/Desktop
+    cp -rav * ~/Desktop/texdown/
     chmod 755 ~/Desktop/texdown/texdown.pl
 
 (Desktop is probably not the best place to put it, but just to
