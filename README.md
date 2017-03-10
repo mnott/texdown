@@ -355,10 +355,11 @@ Command line parameters can take any order on the command line.
 
 ## INSTALLATION
 
-Put the script somewhere and make it executable:
+Put the script and its subdirectories somewhere and make it executable:
 
-    cp texdown.pl ~/Desktop
-    chmod 755 ~/Desktop/texdown.pl
+    mkdir ~/Desktop/texdown
+    cp -rav * ~/Desktop
+    chmod 755 ~/Desktop/texdown/texdown.pl
 
 (Desktop is probably not the best place to put it, but just to
 make the point.) Also, make sure that you reference the right
