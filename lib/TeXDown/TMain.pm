@@ -356,6 +356,16 @@ ARG:
                 $self->log->debug($netcfg) if "" ne $netcfg;
 
                 #parsePlain ($dir, $file);
+
+                open my $tex, $file or die "Could not open $file: $!";
+                $self->log->info("Loading TeX File: $file");
+
+                while ( my $line = <$tex> ) {
+                  $line = $::parser->parse($line) unless $::cfg->get("n");
+                  print $line;
+                }
+                close $tex;
+
             }
         }    # if ( -e "$arg" || -e "$arg.scriv" )
         else {
