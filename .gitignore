@@ -38,3 +38,8 @@ Dissertation.scriv/Files/Docs/docs.checksum
 Dissertation.scriv/QuickLook/
 Dissertation.scriv/Snapshots/
 Dissertation.scriv/Settings/ui.plist
+
+# Ignore Scriv3 assets for the moment
+Blank3.scriv.zip
+Blank3.scriv
+
