@@ -45,7 +45,7 @@ with 'MooseX::Log::Log4perl';
 use namespace::autoclean -except => sub { $_ =~ m{^t_.*} };
 
 use TeXDown::TConfig;
-use TeXDown::TUtils qw/ t_as_string /;
+use TeXDown::TUtils qw/ t_as_string t_split /;
 use TeXDown::Scrivener::TBinderItem;
 
 
@@ -328,15 +328,20 @@ sub print {
                 #
                 if ( defined $search ) {
                     $curline = $parser->parse($curline) unless $dontparse;
-                    if ( $curline =~ m/(.{0,30})($search)(.{0,30})/mi ) {
-                        my $printline = sprintf(
-                            "[%8d] %s: %s%s%s",
-                            $docId, $parentTitle,
-                            colored( $1, 'green' ),
-                            colored( $2, 'red' ),
-                            colored( $3, 'green' )
-                        );
-                        print "$printline\n";
+
+                    my @lines = t_split( "\n", $curline );
+                    foreach my $aline (@lines) {
+                        if ( $aline =~ m/(.{0,30})($search)(.{0,30})/mi ) {
+                            my $printline = sprintf(
+                                "[%8d] %s: %s%s%s",
+                                $docId,
+                                $parentTitle,
+                                colored( $1, 'green' ),
+                                colored( $2, 'red' ),
+                                colored( $3, 'green' )
+                            );
+                            print "$printline\n";
+                        }
                     }
                 }
                 else {
