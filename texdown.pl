@@ -915,6 +915,10 @@ Finally, for emphasizing things, you can do this:
   **This is bold**        => \textbf{This is bold}
   *This is emphasized*    => \emph{This is emphasized}
 
+In Scrivener, you can actually, alternatively, also just use the
+visual controls to typeset text in italics or boldface; those are
+converted to TeXDown markdown, and then further on to LaTeX code.
+
 
 =head2 GOING CRAZY
 
