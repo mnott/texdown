@@ -558,6 +558,11 @@ sub rtf2txt {
     #
     $rtf =~ s!^\{\\fonttbl.*?\}!!gsm;
 
+    #
+    # Parse out Scrivener Annotations
+    #
+    $rtf =~ s!\\\{\\\\Scrv_annot.*?\\\\text=(.*?)\\\\end_Scrv_annot\\\}!$1!gsm;
+
     $rtfparser->parse_string($rtf);
     return $result;
 }
