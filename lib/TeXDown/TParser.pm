@@ -563,6 +563,17 @@ sub rtf2txt {
     #
     $rtf =~ s!\\\{\\\\Scrv_fn=(.*?)\\\\end_Scrv_fn\\\}!__$1__!gsm;
 
+    #
+    # Parse Scrivener Bold
+    #
+    $rtf =~ s!\\b (.*?)\n\\b0 !**$1**!gsm;
+
+
+    #
+    # Parse Scrivener Italics
+    #
+    $rtf =~ s!\\i (.*?)\n\\i0 !*$1*!gsm;
+
 
     $rtfparser->parse_string($rtf);
 
@@ -570,6 +581,8 @@ sub rtf2txt {
     # Parse out Scrivener Annotations
     #
     $result =~ s!\{\\Scrv_annot.*?\\text=(.*?)\\end_Scrv_annot\}!\r\n%\r\n% $1\r\n%\r\n!gsm;
+
+
     return $result;
 }
 

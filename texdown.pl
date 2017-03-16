@@ -912,7 +912,8 @@ References are simple. Assume you somewhere have a label "abc":
 
 Finally, for emphasizing things, you can do this:
 
-  **This is emphasized**    => \emph{This is emphasized}
+  **This is bold**        => \textbf{This is bold}
+  *This is emphasized*    => \emph{This is emphasized}
 
 
 =head2 GOING CRAZY
