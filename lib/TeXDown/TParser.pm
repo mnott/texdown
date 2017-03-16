@@ -559,17 +559,17 @@ sub rtf2txt {
     $rtf =~ s!^\{\\fonttbl.*?\}!!gsm;
 
     #
-    # Parse out Scrivener Annotations
-    #
-    $rtf =~ s!\\\{\\\\Scrv_annot.*?\\\\text=(.*?)\\\\end_Scrv_annot\\\}!$1!gsm;
-
-    #
     # Parse inline Footnotes into footnote markup
     #
     $rtf =~ s!\\\{\\\\Scrv_fn=(.*?)\\\\end_Scrv_fn\\\}!__$1__!gsm;
 
 
     $rtfparser->parse_string($rtf);
+
+    #
+    # Parse out Scrivener Annotations
+    #
+    $result =~ s!\{\\Scrv_annot.*?\\text=(.*?)\\end_Scrv_annot\}!\r\n%\r\n% $1\r\n%\r\n!gsm;
     return $result;
 }
 
