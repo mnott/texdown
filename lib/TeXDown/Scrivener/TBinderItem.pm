@@ -210,7 +210,8 @@ sub load {
     my $uuid     = $el->getAttribute("UUID");
     my $type     = $el->getAttribute("Type");
     my $metadata = $el->findnodes("MetaData")->[0];
-    my $inc      = $metadata->find("IncludeInCompile")->to_literal->value;
+
+    my $inc      = (defined $metadata) ? $metadata->find("IncludeInCompile")->to_literal->value : "Yes";
 
     $self->id($id);
     $self->title($title);
