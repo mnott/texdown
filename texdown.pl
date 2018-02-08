@@ -20,10 +20,10 @@ TeXDown - Markdown for LaTeX and Instrument Scrivener
 
 =head1 VERSION
 
-Version 0.0.2
+Version 0.0.3
 
 =head1 LICENCE AND COPYRIGHT
-Copyright (c) 2016 - 2017 Matthias Nott (mnott (at) mnsoft.org).
+Copyright (c) 2016 - 2018 Matthias Nott (mnott (at) mnsoft.org).
 
 Licensed under WTFPL.
 

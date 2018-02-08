@@ -4,10 +4,10 @@ TeXDown - Markdown for LaTeX and Instrument Scrivener
 
 # VERSION
 
-Version 0.0.2
+Version 0.0.3
 
 # LICENCE AND COPYRIGHT
-Copyright (c) 2016 - 2017 Matthias Nott (mnott (at) mnsoft.org).
+Copyright (c) 2016 - 2018 Matthias Nott (mnott (at) mnsoft.org).
 
 Licensed under WTFPL.
 
@@ -64,6 +64,8 @@ Command line parameters can take any order on the command line.
       -d               debug (alternatives: -debug)
       -n               do not actually parse Markdown into LaTeX
                        (alternative: -no, -nothing)
+      -2               Use Scrivener 2 Compatibility mode (default:
+                       use Scrivener 3 mode)
 
       Scrivener Options:
 
@@ -113,6 +115,14 @@ Command line parameters can take any order on the command line.
 - **-n**
 
     Don't actually parse the Markdown Code into LaTeX code.
+
+- **-2**
+
+    Use Scrivener 2 compatibility mode. If you add -2 to the command
+    line, we will attempt to deal with the Scrivener files as if they
+    were done in Scrivener 2. Default is Scrivener 3. This does not
+    include snapshot handling, should we ever implement it - because
+    we never implemented it for Scrivener 2.
 
 - **-p**
 
@@ -355,11 +365,10 @@ Command line parameters can take any order on the command line.
 
 ## INSTALLATION
 
-Put the script and its subdirectories somewhere and make it executable:
+Put the script somewhere and make it executable:
 
-    mkdir ~/Desktop/texdown
-    cp -rav * ~/Desktop/texdown/
-    chmod 755 ~/Desktop/texdown/texdown.pl
+    cp texdown.pl ~/Desktop
+    chmod 755 ~/Desktop/texdown.pl
 
 (Desktop is probably not the best place to put it, but just to
 make the point.) Also, make sure that you reference the right
@@ -707,7 +716,12 @@ References are simple. Assume you somewhere have a label "abc":
 
 Finally, for emphasizing things, you can do this:
 
-    **This is emphasized**    => \emph{This is emphasized}
+    **This is bold**        => \textbf{This is bold}
+    *This is emphasized*    => \emph{This is emphasized}
+
+In Scrivener, you can actually, alternatively, also just use the
+visual controls to typeset text in italics or boldface; those are
+converted to TeXDown markdown, and then further on to LaTeX code.
 
 ## GOING CRAZY
 
