@@ -124,6 +124,7 @@ GetOptions(
     'a|all'             => sub { $cfg->append(@_); },
     's|search:s'        => sub { $cfg->append(@_); },
     'n|no|nothing'      => sub { $cfg->append(@_); },
+    '2'                 => sub { $cfg->append(@_); },
     'v|verbose'         => sub { $cfg->append(@_); },
     'parser:s'          => sub { $cfg->append(@_); },
     'doc|documentation' => sub { $cfg->append(@_); },
@@ -253,6 +254,8 @@ Command line parameters can take any order on the command line.
    -d               debug (alternatives: -debug)
    -n               do not actually parse Markdown into LaTeX
                     (alternative: -no, -nothing)
+   -2               Use Scrivener 2 Compatibility mode (default:
+                    use Scrivener 3 mode)
 
    Scrivener Options:
 
@@ -305,6 +308,16 @@ has been parsed.
 =item B<-n>
 
 Don't actually parse the Markdown Code into LaTeX code.
+
+
+=item B<-2>
+
+Use Scrivener 2 compatibility mode. If you add -2 to the command
+line, we will attempt to deal with the Scrivener files as if they
+were done in Scrivener 2. Default is Scrivener 3. This does not
+include snapshot handling, should we ever implement it - because
+we never implemented it for Scrivener 2.
+
 
 =item B<-p>
 

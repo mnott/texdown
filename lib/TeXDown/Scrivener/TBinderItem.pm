@@ -143,7 +143,7 @@ has level => (
 
 has id => (
     is  => 'rw',
-    isa => 'Int',
+    isa => 'Str',
 );
 
 
@@ -205,13 +205,29 @@ sub load {
     my $level       = $self->level;
     my $binderitems = $self->binderitems;
 
-    my $id       = $el->getAttribute("ID");
+    my $id
+        = defined $::cfg->get("2")
+        ? $el->getAttribute("ID")
+        : $el->getAttribute("UUID");
+
     my $title    = $el->find("Title")->to_literal->value;
     my $uuid     = $el->getAttribute("UUID");
     my $type     = $el->getAttribute("Type");
     my $metadata = $el->findnodes("MetaData")->[0];
 
-    my $inc      = (defined $metadata) ? $metadata->find("IncludeInCompile")->to_literal->value : "Yes";
+    my $inc;
+    if ( defined $::cfg->get("2") ) {
+        $inc
+            = ( defined $metadata )
+            ? $metadata->find("IncludeInCompile")->to_literal->value
+            : "Yes";
+    }
+    else {
+        $inc
+            = ( defined $metadata )
+            ? $metadata->find("IncludeInCompile")->to_literal->value
+            : "No";
+    }
 
     $self->id($id);
     $self->title($title);
@@ -222,7 +238,7 @@ sub load {
 
     my $indent = "  " x $level;
 
-    my $logline = sprintf( "%s [%5d] %s ", $indent, $id, $title );
+    my $logline = sprintf( "%s [%s] %s ", $indent, $id, $title );
 
     my @xml_binderitems = $el->findnodes('Children/BinderItem');
 
@@ -293,7 +309,7 @@ sub print {
         if ($list) {
             if ( defined $search ) {
                 if ( $parentTitle =~ m/(.*)($search)(.*)/mi ) {
-                    my $printline = sprintf( "[%8d] %s: %s%s",
+                    my $printline = sprintf( "[%s] %s: %s%s",
                         $docId,
                         colored( $1, 'green' ),
                         colored( $2, 'red' ),
@@ -302,13 +318,16 @@ sub print {
                 }
             }
             else {
-                my $printline = sprintf( "[%8d] %s", $docId, $parentTitle );
+                my $printline = sprintf( "[%s] %s", $docId, $parentTitle );
 
                 print "$printline\n";
             }
         }
         else {
-            my $rtf = "$dir/Files/Docs/$docId.rtf";
+            my $rtf
+                = defined $::cfg->get("2")
+                ? "$dir/Files/Docs/$docId.rtf"
+                : "$dir/Files/Data/$docId/content.rtf";
 
             if ( -e "$rtf" ) {
                 my $line = "";
@@ -320,7 +339,10 @@ sub print {
                         . "\n%\n%\n-->\n";
                 }
 
-                my $curline = $parser->rtf2txt("$dir/Files/Docs/$docId");
+                my $curline
+                    = defined $::cfg->get("2")
+                    ? $parser->rtf2txt("$dir/Files/Docs/$docId")
+                    : $parser->rtf2txt("$dir/Files/Data/$docId/content");
 
                 #
                 # If we are asked to search for something, we intepret the
@@ -333,14 +355,12 @@ sub print {
                     my @lines = t_split( "\n", $curline );
                     foreach my $aline (@lines) {
                         if ( $aline =~ m/(.{0,30})($search)(.{0,30})/mi ) {
-                            my $printline = sprintf(
-                                "[%8d] %s: %s%s%s",
+                            my $printline = sprintf( "[%s] %s: %s%s%s",
                                 $docId,
                                 $parentTitle,
                                 colored( $1, 'green' ),
                                 colored( $2, 'red' ),
-                                colored( $3, 'green' )
-                            );
+                                colored( $3, 'green' ) );
                             print "$printline\n";
                         }
                     }
