@@ -575,6 +575,12 @@ sub rtf2txt {
     $rtf =~ s!\\i (.*?)\n\\i0 !*$1*!gsm;
 
 
+    #
+    # Parse out visual templates that are added by Scrivener
+    #
+    $rtf =~ s/<!??\$Scr_Cs::\d?>//gsm;
+    $rtf =~ s/<!??\$Scr_Ps::\d?>//gsm;
+
     $rtfparser->parse_string($rtf);
 
     #
