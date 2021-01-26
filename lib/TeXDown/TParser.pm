@@ -589,6 +589,11 @@ sub rtf2txt {
     $result =~ s!\{\\Scrv_annot.*?\\text=(.*?)\\end_Scrv_annot\}!\r\n%\r\n% $1\r\n%\r\n!gsm;
 
 
+    #
+    # Scrivener tends to put in Helvetica.*; so we remove it
+    #
+    $result =~ s!Helvetica.*?;!!gsm;
+
     return $result;
 }
 
