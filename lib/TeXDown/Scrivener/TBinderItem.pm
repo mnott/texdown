@@ -369,7 +369,7 @@ sub print {
                     $line .= $curline;
 
                     $line = $parser->parse($line) unless $dontparse;
-                    print $line . "\n";
+                    if (defined $line) { print "$line\n" };
                 }
             }
 
