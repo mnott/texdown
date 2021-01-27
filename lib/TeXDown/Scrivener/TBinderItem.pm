@@ -37,6 +37,7 @@ use File::Basename;
 use Cwd qw(abs_path);
 
 use XML::LibXML;
+use XML::LibXML::PrettyPrint;
 use Term::ANSIColor qw( colored );
 
 use Moose;
@@ -128,11 +129,24 @@ has binder => (
     lazy => 0,
 );
 
+has parent => (
+    is   => 'rw',
+    isa  => 'TeXDown::Scrivener::TBinderItem',
+    lazy => 0,
+);
+
 has binderitems => (
     traits  => ['Array'],
     is      => 'rw',
     isa     => 'ArrayRef[TeXDown::Scrivener::TBinderItem]',
     default => sub { [] },
+    lazy    => 0,
+);
+
+has custommetadata => (
+    traits  => ['Hash'],
+    is      => 'rw',
+    default => sub { {} },
     lazy    => 0,
 );
 
@@ -198,6 +212,14 @@ sub BUILD {
     else {
         $self->path("");
     }
+
+    if ( exists $arg_ref->{parent} ) {
+        $self->parent($arg_ref->{parent});
+    }
+
+    if ( exists $arg_ref->{custommetadata} ) {
+        $self->custommetadata($arg_ref->{custommetadata})
+    }
 }
 
 sub load {
@@ -214,6 +236,7 @@ sub load {
     my $uuid     = $el->getAttribute("UUID");
     my $type     = $el->getAttribute("Type");
     my $metadata = $el->findnodes("MetaData")->[0];
+
 
     my $inc;
     if ( defined $::cfg->get("2") ) {
@@ -236,12 +259,53 @@ sub load {
     $self->inc( "Yes" eq $inc );
     $self->path( $self->path . "/" . $self->title );
 
+    #
+    # Take care of custom metadata
+    #
+    my $cmd_own = {};
+
+    #
+    # Copy the custom metadata from the parent if there is any.
+    #
+    my $parent = $self->parent;
+
+    if (defined $parent) {
+        my @cmd_parent = $parent->custommetadata;
+        if (@cmd_parent) {
+            foreach my $cmd_parent_item (@cmd_parent) {
+                foreach my $key (keys %{$cmd_parent_item}) {
+                    $cmd_own->{$key} = $cmd_parent_item->{$key};
+                }
+            }
+        }
+    }
+
+    # Now that we've data from the parent, we fetch our own
+    # custom metadata and eventually overwrite values that
+    # we've received from our parent
+
+    # Get all custom metadata for this Binder Item
+    my @cmd_own = $el->findnodes("MetaData/CustomMetaData/MetaDataItem");
+
+    # Copy that data into our field. We need to actually
+    # copy by value so that we avoid replicating up the
+    # hierarchy
+    if( @cmd_own ) {
+        foreach my $cmd_own_item (@cmd_own) {
+            my $key = $cmd_own_item->find("FieldID")->to_literal->value;
+            my $val = $cmd_own_item->find("Value")->to_literal->value;
+            #$self->custommetadata->{$key} = $val;
+            $cmd_own->{$key} = $val;
+        }
+        $self->custommetadata($cmd_own);
+    }
+
+    #
+    # Recurse down to our children
+    #
     my $indent = "  " x $level;
-
     my $logline = sprintf( "%s [%s] %s ", $indent, $id, $title );
-
     my @xml_binderitems = $el->findnodes('Children/BinderItem');
-
     $self->log->trace($logline);
 
     foreach my $xml_binderitem (@xml_binderitems) {
@@ -249,12 +313,14 @@ sub load {
             level  => ++$level,
             binder => $self->binder,
             path   => $self->path,
+            custommetadata => $cmd_own,
+            parent => $self,
         );
         $binderitem->load($xml_binderitem);
         $self->add($binderitem);
     }
 
-#$self->log->trace( "Loaded " . $id . $indent . $title . "(" . (scalar @xml_binderitems) . " children)");
+    #$self->log->trace( "Loaded " . $id . $indent . $title . "(" . (scalar @xml_binderitems) . " children)");
 }
 
 sub add {
@@ -267,12 +333,32 @@ sub add {
 
 
 #
+# parse_custommetadata
+#
+sub parse_custommetadata {
+    my ( $self, $str ) = @_;
+
+    my $cmd_own = $self->custommetadata;
+
+    foreach my $key (keys %{$cmd_own}) {
+        my $val = $cmd_own->{$key};
+
+        $str =~ s!_${key}_!$val!gsm;
+    }
+
+    return $str;
+}
+
+
+#
 # print
 #
 # Recursive Function to conditionally print an dive into children
 #
 sub print {
     my ( $self, $arg_ref ) = @_;
+
+    # print $self->title . ": Printing: => : " . $arg_ref->{parent}->title . " " . Data::Dumper::Dumper($self->custommetadata);
 
     my $parent = $arg_ref->{parent};
     my $path   = $arg_ref->{path};
@@ -369,11 +455,14 @@ sub print {
                     $line .= $curline;
 
                     $line = $parser->parse($line) unless $dontparse;
-                    if (defined $line) { print "$line\n" };
+
+                    $line = $self->parse_custommetadata($line);
+
+                    if (defined $line) {
+                        print "$line\n";
+                    };
                 }
             }
-
-
         }
     }
 
@@ -388,7 +477,7 @@ sub print {
         $binderitem->print(
             {   parent => $binderitem,
                 path   => $parentTitle,
-                level  => ++$level,
+                level  => ++$level
             }
         );
     }
