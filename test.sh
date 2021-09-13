@@ -18,3 +18,4 @@
 inline2test t/inline2test.ini
 
 LOGLEVEL=$LOGLEVEL prove -l $@;
+
